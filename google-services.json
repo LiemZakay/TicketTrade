@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "946944958286",
+    "project_id": "tickettrade-e0325",
+    "storage_bucket": "tickettrade-e0325.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:946944958286:android:69d1c01b3dd05bc86c481f",
+        "android_client_info": {
+          "package_name": "com.ticketrade.proj"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD4qFVRrnYeXQMYiq-ZxyI3eb6Yze-YcEM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,5 +1,17 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import React from "react";
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { Register } from "./Register/Register";
+import { HomePage } from "./HomePage/HomePage";
+import { Login } from "./Login/Login";
+import Profile from "./Profile/Profile";
+import  { BuyerScreen }  from "./BuyerScreen";
+import { SellerScreen } from "./SellerScreen";
+import {AdsScreen} from "./AdsScreen";
+
+
+
+const Stack = createNativeStackNavigator();
 
 export default function App() {
   return (
@@ -43,6 +55,13 @@ export default function App() {
         <Stack.Screen
           name="SellerScreen"
           component={SellerScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+          <Stack.Screen
+          name="AdsScreen"
+          component={AdsScreen}
           options={{
             headerShown: false,
           }}
