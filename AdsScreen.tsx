@@ -46,6 +46,10 @@ export const AdsScreen = () => {
     </View>
   );
 
+  const goBack = () => {
+    nav.goBack();
+  };
+
   return (
     <View style={styles.container}>
       <FlatList
@@ -53,6 +57,9 @@ export const AdsScreen = () => {
         renderItem={renderItem}
         keyExtractor={item => item.id}
       />
+      <TouchableOpacity onPress={goBack} style={styles.goBackButton}>
+        <Text style={styles.goBackButtonText}>Go Back</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -75,6 +82,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333333',
     marginBottom: 8,
+  },
+  goBackButton: {
+    backgroundColor: "#00796B",
+    padding: 10,
+    borderRadius: 5,
+    marginTop: 20,
+    alignSelf: "center",
+  },
+  goBackButtonText: {
+    color: "#FFFFFF",
+    fontSize: 18,
   },
 });
 
