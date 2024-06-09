@@ -8,6 +8,7 @@ import Profile from "./Profile/Profile";
 import  { BuyerScreen }  from "./BuyerScreen";
 import { SellerScreen } from "./SellerScreen";
 import {AdsScreen} from "./AdsScreen";
+import {AdsScreenSeller} from "./AdsScreenSeller";
 
 
 
@@ -66,6 +67,14 @@ export default function App() {
             headerShown: false,
           }}
         />
+        <Stack.Screen
+          name="AdsScreenSeller"
+          component={AdsScreenSeller}
+          options={{
+            headerShown: false,
+          }}
+        />
+        
       </Stack.Navigator>
     </NavigationContainer>
   );

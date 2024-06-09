@@ -16,6 +16,8 @@ type RootStackParamList = {
   BuyerScreen: undefined;
   SellerScreen: undefined;
   AdsScreen: undefined;
+  AdsScreenSeller: undefined;
+  
 };
 
 type ProfileScreenNavigationProp = NavigationProp<RootStackParamList, 'Profile'>;
@@ -67,6 +69,10 @@ export const HomePage = () => {
     nav.navigate("AdsScreen");
   }
 
+  const goToAdsSeller = () => {
+    nav.navigate("AdsScreenSeller");
+  }
+
   return (
     <SafeAreaView style={styles.contentView}>
       <View style={styles.container}>
@@ -82,7 +88,10 @@ export const HomePage = () => {
               <Text style={styles.profileButtonText}>+</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={goToAds} style={styles.profileButton}>
-              <Text style={styles.profileButtonText}>View Ads</Text>
+              <Text style={styles.profileButtonText}>View Ads Buyers</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={goToAdsSeller} style={styles.profileButton}>
+              <Text style={styles.profileButtonText}>View Ads Sellers</Text>
             </TouchableOpacity>
           </>
         )}
