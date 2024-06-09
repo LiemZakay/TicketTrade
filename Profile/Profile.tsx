@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   SafeAreaView,
   View,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  FlatList,
 } from "react-native";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import firestore from '@react-native-firebase/firestore';
@@ -26,6 +27,19 @@ export const Profile = () => {
   const [email, setEmail] = useState(user.email);
   const [name, setName] = useState(user.name);
   const [phone, setPhone] = useState(user.phone);
+  const [buyerAds, setBuyerAds] = useState<any[]>([]);
+  const [sellerAds, setSellerAds] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchAds = async () => {
+      const buyerAdsSnapshot = await firestore().collection('buyerAds').where('userId', '==', user.uid).get();
+      const sellerAdsSnapshot = await firestore().collection('sellerAds').where('userId', '==', user.uid).get();
+      setBuyerAds(buyerAdsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setSellerAds(sellerAdsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    };
+
+    fetchAds();
+  }, [user.uid]);
 
   const saveProfile = async () => {
     try {
@@ -40,6 +54,17 @@ export const Profile = () => {
       console.error('Error updating profile:', error);
     }
   };
+
+  const renderAd = ({ item }: { item: any }) => (
+    <View style={styles.adContainer}>
+      <Text style={styles.adText}>Concert: {item.concertName}</Text>
+      <Text style={styles.adText}>Ticket Type: {item.ticketType}</Text>
+      <Text style={styles.adText}>Number of Tickets: {item.numTickets}</Text>
+      <Text style={styles.adText}>Price Range: ${item.priceRange[0]} - ${item.priceRange[1]}</Text>
+      <Text style={styles.adText}>Location: {item.location}</Text>
+      <Text style={styles.adText}>Phone Number: {item.phoneNumber}</Text>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.contentView}>
@@ -69,6 +94,18 @@ export const Profile = () => {
         <TouchableOpacity onPress={saveProfile} style={styles.saveButton}>
           <Text style={styles.saveButtonText}>Save</Text>
         </TouchableOpacity>
+        <Text style={styles.sectionHeader}>Buyer Ads</Text>
+        <FlatList
+          data={buyerAds}
+          renderItem={renderAd}
+          keyExtractor={item => item.id}
+        />
+        <Text style={styles.sectionHeader}>Seller Ads</Text>
+        <FlatList
+          data={sellerAds}
+          renderItem={renderAd}
+          keyExtractor={item => item.id}
+        />
       </View>
     </SafeAreaView>
   );
@@ -111,6 +148,27 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 18,
     textAlign: "center",
+  },
+  sectionHeader: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#00796B',
+    marginTop: 20,
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  adContainer: {
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    marginBottom: 16,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#CCCCCC',
+  },
+  adText: {
+    fontSize: 16,
+    color: '#333333',
+    marginBottom: 8,
   },
 });
 
