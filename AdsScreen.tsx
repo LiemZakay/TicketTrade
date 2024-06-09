@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import firestore from '@react-native-firebase/firestore';
 
@@ -12,6 +12,8 @@ type AdsScreenNavigationProp = NavigationProp<RootStackParamList, 'AdsScreen'>;
 
 export const AdsScreen = () => {
   const [ads, setAds] = useState<any[]>([]);
+  const [filteredAds, setFilteredAds] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const nav = useNavigation<AdsScreenNavigationProp>();
 
   useEffect(() => {
@@ -19,6 +21,7 @@ export const AdsScreen = () => {
       const snapshot = await firestore().collection('buyerAds').get();
       const adsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setAds(adsList);
+      setFilteredAds(adsList);
     };
 
     fetchAds();
@@ -31,6 +34,18 @@ export const AdsScreen = () => {
       }
     });
   };
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    const filtered = ads.filter(ad => {
+      const concertName = ad.concertName ? ad.concertName.toLowerCase() : ''; // Check if concertName is defined
+      const userName = ad.userName ? ad.userName.toLowerCase() : ''; // Check if userName is defined
+      const priceRange = ad.priceRange ? ad.priceRange.toString().toLowerCase() : ''; // Check if priceRange is defined
+      return concertName.includes(query.toLowerCase()) || userName.includes(query.toLowerCase()) || priceRange.includes(query.toLowerCase());
+    });
+    setFilteredAds(filtered);
+  };
+  
 
   const renderItem = ({ item }: { item: any }) => (
     <View style={styles.adContainer}>
@@ -52,8 +67,14 @@ export const AdsScreen = () => {
 
   return (
     <View style={styles.container}>
+      <TextInput
+        style={styles.searchInput}
+        placeholder="Search by concert, profile, or price..."
+        value={searchQuery}
+        onChangeText={handleSearch}
+      />
       <FlatList
-        data={ads}
+        data={filteredAds}
         renderItem={renderItem}
         keyExtractor={item => item.id}
       />
@@ -69,6 +90,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F5F5F5',
     padding: 16,
+  },
+  searchInput: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CCCCCC',
+    borderRadius: 4,
+    padding: 8,
+    marginBottom: 16,
   },
   adContainer: {
     backgroundColor: '#FFFFFF',
