@@ -9,6 +9,7 @@ import  { BuyerScreen }  from "./BuyerScreen";
 import { SellerScreen } from "./SellerScreen";
 import {AdsScreen} from "./AdsScreen";
 import {AdsScreenSeller} from "./AdsScreenSeller";
+import {ImagePickerComp} from "./PicUpload";
 
 
 
@@ -74,6 +75,14 @@ export default function App() {
             headerShown: false,
           }}
         />
+         <Stack.Screen
+          name="picUpload"
+          component={ImagePickerComp}
+          options={{
+            headerShown: false,
+          }}
+        />
+        
         
       </Stack.Navigator>
     </NavigationContainer>

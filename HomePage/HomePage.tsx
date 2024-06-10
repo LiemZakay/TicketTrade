@@ -1,15 +1,9 @@
 import { NavigationProp, useNavigation } from "@react-navigation/native";
 import React, { useState, useEffect } from "react";
-import {
-  SafeAreaView,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Alert
-} from "react-native";
+import { SafeAreaView, View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
+import { Ionicons } from '@expo/vector-icons';
 
 type RootStackParamList = {
   Profile: { user: any };
@@ -17,7 +11,7 @@ type RootStackParamList = {
   SellerScreen: undefined;
   AdsScreen: undefined;
   AdsScreenSeller: undefined;
-  
+  picUpload: undefined;
 };
 
 type ProfileScreenNavigationProp = NavigationProp<RootStackParamList, 'Profile'>;
@@ -48,8 +42,8 @@ export const HomePage = () => {
 
   const AlertBuyerorSeller = () => {
     Alert.alert(
-      "Ticket Trade", 
-      "Choose Buyer or Seller", 
+      "Ticket Trade",
+      "Choose Buyer or Seller",
       [
         {
           text: "Buyer",
@@ -73,25 +67,38 @@ export const HomePage = () => {
     nav.navigate("AdsScreenSeller");
   }
 
+  const gotoImagePage = () => {
+    nav.navigate("picUpload");
+  }
+
   return (
     <SafeAreaView style={styles.contentView}>
       <View style={styles.container}>
         {user && (
           <>
             <Text style={styles.welcomeText}>Welcome, {user.name}</Text>
-            <Text style={styles.infoText}>Email: {user.email}</Text>
-            <Text style={styles.infoText}>Phone: {user.phone}</Text>
-            <TouchableOpacity onPress={goToProfile} style={styles.profileButton}>
-              <Text style={styles.profileButtonText}>Go to Profile</Text>
+            <View style={styles.infoContainer}>
+              <Ionicons name="mail-outline" size={24} color="#4A90E2" style={styles.infoIcon} />
+              <Text style={styles.infoText}>{user.email}</Text>
+            </View>
+            <View style={styles.infoContainer}>
+              <Ionicons name="call-outline" size={24} color="#4A90E2" style={styles.infoIcon} />
+              <Text style={styles.infoText}>{user.phone}</Text>
+            </View>
+            <TouchableOpacity onPress={goToProfile} style={styles.button}>
+              <Text style={styles.buttonText}>Go to Profile</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={AlertBuyerorSeller} style={styles.profileButton}>
-              <Text style={styles.profileButtonText}>+</Text>
+            <TouchableOpacity onPress={AlertBuyerorSeller} style={styles.addButton}>
+              <Ionicons name="add-circle-outline" size={32} color="#FFFFFF" />
             </TouchableOpacity>
-            <TouchableOpacity onPress={goToAds} style={styles.profileButton}>
-              <Text style={styles.profileButtonText}>View Ads Buyers</Text>
+            <TouchableOpacity onPress={gotoImagePage} style={styles.button}>
+              <Text style={styles.buttonText}>Image Upload</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={goToAdsSeller} style={styles.profileButton}>
-              <Text style={styles.profileButtonText}>View Ads Sellers</Text>
+            <TouchableOpacity onPress={goToAds} style={styles.button}>
+              <Text style={styles.buttonText}>View Ads Buyers</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={goToAdsSeller} style={styles.button}>
+              <Text style={styles.buttonText}>View Ads Sellers</Text>
             </TouchableOpacity>
           </>
         )}
@@ -103,35 +110,51 @@ export const HomePage = () => {
 const styles = StyleSheet.create({
   contentView: {
     flex: 1,
-    backgroundColor: "#E0F7FA",
+    backgroundColor: "#F0F8FF",
   },
   container: {
     flex: 1,
-    marginHorizontal: 50,
-    backgroundColor: "#E0F7FA",
-    paddingTop: 20,
-    justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 40,
   },
   welcomeText: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#00796B",
+    color: "#333333",
     marginBottom: 20,
+    textAlign: 'center',
+  },
+  infoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  infoIcon: {
+    marginRight: 10,
   },
   infoText: {
     fontSize: 18,
-    color: "#00796B",
-    marginBottom: 20,
+    color: "#333333",
   },
-  profileButton: {
-    backgroundColor: "#00796B",
-    padding: 10,
+  button: {
+    backgroundColor: "#4A90E2",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
     borderRadius: 5,
+    marginBottom: 10,
+    width: '100%',
   },
-  profileButtonText: {
+  buttonText: {
     color: "#FFFFFF",
     fontSize: 18,
+    textAlign: 'center',
+  },
+  addButton: {
+    backgroundColor: '#4A90E2',
+    padding: 10,
+    borderRadius: 50,
+    marginBottom: 20,
   },
 });
 

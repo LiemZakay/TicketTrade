@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
+import { useNavigation } from '@react-navigation/native';
 
 export const SellerScreen = () => {
   const [concertName, setConcertName] = useState('');
@@ -44,6 +45,13 @@ export const SellerScreen = () => {
       }
     }
   };
+
+  const nav = useNavigation();
+
+  const gobackHome= ()=>
+  {
+    nav.goBack();
+  }
 
   return (
     <View style={styles.container}>
@@ -106,6 +114,10 @@ export const SellerScreen = () => {
       <TouchableOpacity style={styles.postButton} onPress={postAd}>
         <Text style={styles.postButtonText}>Post Ad</Text>
       </TouchableOpacity>
+      <TouchableOpacity style={styles.postButton} onPress={gobackHome}>
+        <Text style={styles.postButtonText}>goBack</Text>
+      </TouchableOpacity>
+
     </View>
   );
 };
