@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import React, { useState, useEffect } from "react";
 import {
   SafeAreaView,
   View,
@@ -7,7 +6,6 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  FlatList,
   FlatList,
 } from "react-native";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
