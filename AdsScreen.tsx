@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, TextInput, Alert, Modal } from 'react-native';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { auth, firestore } from './firebaseConfig';
-import { collection, getDocs, doc, getDoc, deleteDoc, query } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, deleteDoc, query, updateDoc } from 'firebase/firestore';
 
 type RootStackParamList = {
   Profile: { user: any };
@@ -16,20 +16,22 @@ export const AdsScreen = () => {
   const [ads, setAds] = useState<any[]>([]);
   const [filteredAds, setFilteredAds] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingAd, setEditingAd] = useState<any>(null);
   const nav = useNavigation<AdsScreenNavigationProp>();
   const currentUser = auth.currentUser;
 
   useEffect(() => {
-    const fetchAds = async () => {
-      const adsCollection = collection(firestore, 'buyerAds');
-      const adsSnapshot = await getDocs(query(adsCollection));
-      const adsList = adsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setAds(adsList);
-      setFilteredAds(adsList);
-    };
-
     fetchAds();
   }, []);
+
+  const fetchAds = async () => {
+    const adsCollection = collection(firestore, 'buyerAds');
+    const adsSnapshot = await getDocs(query(adsCollection));
+    const adsList = adsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    setAds(adsList);
+    setFilteredAds(adsList);
+  };
 
   const goToProfile = async (userId: string) => {
     const userDocRef = doc(collection(firestore, 'users'), userId);
@@ -76,6 +78,26 @@ export const AdsScreen = () => {
     );
   };
 
+  const editAd = (ad: any) => {
+    setEditingAd(ad);
+    setEditModalVisible(true);
+  };
+
+  const updateAd = async () => {
+    if (!editingAd) return;
+
+    try {
+      const adDocRef = doc(collection(firestore, 'buyerAds'), editingAd.id);
+      await updateDoc(adDocRef, editingAd);
+      setEditModalVisible(false);
+      fetchAds(); // Refresh the ads list
+      Alert.alert("Success", "Your ad has been updated.");
+    } catch (error) {
+      console.error("Error updating ad:", error);
+      Alert.alert("Error", "Failed to update ad. Please try again.");
+    }
+  };
+
   const renderItem = ({ item }: { item: any }) => (
     <View style={styles.adContainer}>
       <TouchableOpacity style={styles.adContent} onPress={() => goToProfile(item.userId)}>
@@ -99,9 +121,14 @@ export const AdsScreen = () => {
         </View>
       </TouchableOpacity>
       {currentUser && item.userId === currentUser.uid && (
-        <TouchableOpacity style={styles.deleteButton} onPress={() => deleteAd(item.id)}>
-          <Ionicons name="trash-outline" size={24} color="#FF6B6B" />
-        </TouchableOpacity>
+        <View style={styles.actionButtons}>
+          <TouchableOpacity style={styles.editButton} onPress={() => editAd(item)}>
+            <Ionicons name="create-outline" size={24} color="#4A90E2" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.deleteButton} onPress={() => deleteAd(item.id)}>
+            <Ionicons name="trash-outline" size={24} color="#FF6B6B" />
+          </TouchableOpacity>
+        </View>
       )}
     </View>
   );
@@ -131,107 +158,226 @@ export const AdsScreen = () => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
       />
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={editModalVisible}
+        onRequestClose={() => setEditModalVisible(false)}
+      >
+        <View style={styles.centeredView}>
+          <View style={styles.modalView}>
+            <Text style={styles.modalTitle}>Edit Ad</Text>
+            <TextInput
+              style={styles.input}
+              value={editingAd?.concertName}
+              onChangeText={(text) => setEditingAd({...editingAd, concertName: text})}
+              placeholder="Concert Name"
+            />
+            <TextInput
+              style={styles.input}
+              value={editingAd?.ticketType}
+              onChangeText={(text) => setEditingAd({...editingAd, ticketType: text})}
+              placeholder="Ticket Type"
+            />
+            <TextInput
+              style={styles.input}
+              value={editingAd?.numTickets?.toString()}
+              onChangeText={(text) => setEditingAd({...editingAd, numTickets: parseInt(text) || 0})}
+              placeholder="Number of Tickets"
+              keyboardType="numeric"
+            />
+            <TextInput
+              style={styles.input}
+              value={editingAd?.priceRange}
+              onChangeText={(text) => setEditingAd({...editingAd, priceRange: text})}
+              placeholder="Price Range"
+            />
+            <TextInput
+              style={styles.input}
+              value={editingAd?.location}
+              onChangeText={(text) => setEditingAd({...editingAd, location: text})}
+              placeholder="Location"
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={[styles.button, styles.buttonClose]} onPress={() => setEditModalVisible(false)}>
+                <Text style={styles.textStyle}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.button, styles.buttonSubmit]} onPress={updateAd}>
+                <Text style={styles.textStyle}>Update</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
 
-  const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: '#F0F8FF', 
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8F9FA',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#3A86FF',
+    paddingTop: 50,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+  },
+  backButton: {
+    marginRight: 15,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 25,
+    paddingHorizontal: 15,
+    marginHorizontal: 20,
+    marginTop: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  searchIcon: {
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
+    height: 50,
+    fontSize: 16,
+    color: '#333333',
+  },
+  listContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  adContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 15,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderLeftWidth: 5,
+    borderLeftColor: '#3A86FF',
+    overflow: 'hidden',
+  },
+  adContent: {
+    padding: 20,
+  },
+  adHeader: {
+    marginBottom: 15,
+  },
+  concertName: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333333',
+    marginBottom: 5,
+  },
+  userName: {
+    fontSize: 16,
+    color: '#3A86FF',
+  },
+  adDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  detailText: {
+    marginLeft: 5,
+    fontSize: 16,
+    color: '#555555',
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    position: 'absolute',
+    top: 10,
+    right: 10,
+  },
+  editButton: {
+    padding: 10,
+    marginRight: 10,
+  },
+  deleteButton: {
+    padding: 10,
+  },
+  centeredView: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalView: {
+    width: '80%',
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 35,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2
     },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: '#4A90E2', 
-      paddingTop: 40,
-      paddingBottom: 20,
-      paddingHorizontal: 20,
-    },
-    backButton: {
-      marginRight: 15,
-    },
-    headerTitle: {
-      fontSize: 24,
-      fontWeight: 'bold',
-      color: '#FFFFFF',
-    },
-    searchContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: '#FFFFFF',
-      borderRadius: 25,
-      paddingHorizontal: 15,
-      marginHorizontal: 20,
-      marginTop: 20,
-      marginBottom: 20,
-      shadowColor: '#4A90E2',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
-    },
-    searchIcon: {
-      marginRight: 10,
-    },
-    searchInput: {
-      flex: 1,
-      height: 50,
-      fontSize: 16,
-      color: '#333333',
-    },
-    listContent: {
-      paddingHorizontal: 20,
-      paddingBottom: 20,
-    },
-    adContainer: {
-      backgroundColor: '#FFFFFF',
-      borderRadius: 15,
-      marginBottom: 20,
-      shadowColor: '#4A90E2',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
-      borderLeftWidth: 5,
-      borderLeftColor: '#4A90E2',
-      overflow: 'hidden', // This ensures the delete button doesn't break the border radius
-    },
-    adContent: {
-      padding: 20,
-    },
-    adHeader: {
-      marginBottom: 15,
-    },
-    concertName: {
-      fontSize: 22,
-      fontWeight: 'bold',
-      color: '#333333',
-      marginBottom: 5,
-    },
-    userName: {
-      fontSize: 16,
-      color: '#4A90E2',
-    },
-    adDetails: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-    },
-    detailItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    detailText: {
-      marginLeft: 5,
-      fontSize: 16,
-      color: '#555555',
-    },
-    deleteButton: {
-      position: 'absolute',
-      top: 10,
-      right: 10,
-      padding: 10,
-    },
-  });
-  
-  export default AdsScreen;
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    color: '#333333',
+  },
+  input: {
+    height: 50,
+    width: '100%',
+    borderColor: '#E0E0E0',
+    borderWidth: 1,
+    marginBottom: 15,
+    paddingHorizontal: 15,
+    borderRadius: 10,
+    fontSize: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 20,
+  },
+  button: {
+    borderRadius: 10,
+    padding: 12,
+    elevation: 2,
+    width: '45%',
+  },
+  buttonClose: {
+    backgroundColor: '#FF6B6B',
+  },
+  buttonSubmit: {
+    backgroundColor: '#3A86FF',
+  },
+  textStyle: {
+    color: 'white',
+    fontWeight: 'bold',
+    textAlign: 'center',
+    fontSize: 16,
+  },
+});
+
+export default AdsScreen;
