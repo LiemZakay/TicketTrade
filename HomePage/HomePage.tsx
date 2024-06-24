@@ -1,9 +1,10 @@
 import { NavigationProp, useNavigation } from "@react-navigation/native";
 import React, { useState, useEffect } from "react";
 import { SafeAreaView, View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
-import auth from '@react-native-firebase/auth';
-import firestore from '@react-native-firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
+import { auth, firestore } from '../firebaseConfig';
+import { collection, doc, getDoc } from 'firebase/firestore';
+import { signOut } from 'firebase/auth';
 
 type RootStackParamList = {
   Profile: { user: any };
@@ -12,24 +13,28 @@ type RootStackParamList = {
   AdsScreen: undefined;
   AdsScreenSeller: undefined;
   picUpload: undefined;
+  Login: undefined;
 };
 
 type ProfileScreenNavigationProp = NavigationProp<RootStackParamList, 'Profile'>;
 
-export const HomePage = () => {
+export const HomePageScreen = () => {
   const [user, setUser] = useState<any>(null);
   const nav = useNavigation<ProfileScreenNavigationProp>();
 
   useEffect(() => {
-    const currentUser = auth().currentUser;
-    if (currentUser) {
-      const userDoc = firestore().collection('users').doc(currentUser.uid);
-      userDoc.get().then((doc) => {
-        if (doc.exists) {
-          setUser(doc.data());
+    const fetchUserData = async () => {
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        const userDocRef = doc(collection(firestore, 'users'), currentUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          setUser(userDocSnap.data());
         }
-      });
-    }
+      }
+    };
+
+    fetchUserData();
   }, []);
 
   const goToProfile = () => {
@@ -71,8 +76,24 @@ export const HomePage = () => {
     nav.navigate("picUpload");
   }
 
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      nav.navigate('Login');
+    } catch (error) {
+      console.error('Error signing out: ', error);
+      Alert.alert('Logout Failed', 'An error occurred while logging out. Please try again.');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.contentView}>
+      <View style={styles.header}>
+        <Text style={styles.headerText}>Home</Text>
+        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+          <Ionicons name="log-out-outline" size={24} color="#4A90E2" />
+        </TouchableOpacity>
+      </View>
       <View style={styles.container}>
         {user && (
           <>
@@ -111,6 +132,23 @@ const styles = StyleSheet.create({
   contentView: {
     flex: 1,
     backgroundColor: "#F0F8FF",
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 15,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  headerText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333333',
+  },
+  logoutButton: {
+    padding: 5,
   },
   container: {
     flex: 1,
@@ -158,4 +196,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default HomePage;
+export default HomePageScreen;
