@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, Image } from 'react-native';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { auth, firestore } from './firebaseConfig';
@@ -64,6 +64,9 @@ export const AdsScreenSeller = () => {
   const renderItem = ({ item }: { item: any }) => (
     <View style={styles.adContainer}>
       <TouchableOpacity style={styles.adContent} onPress={() => goToProfile(item.userId)}>
+        {item.imageUrl && (
+          <Image source={{ uri: item.imageUrl }} style={styles.adImage} />
+        )}
         <View style={styles.adHeader}>
           <Text style={styles.concertName}>{item.concertName}</Text>
           <Text style={styles.userName}>by {item.userName}</Text>
@@ -79,7 +82,7 @@ export const AdsScreenSeller = () => {
           </View>
           <View style={styles.detailItem}>
             <Ionicons name="calendar-outline" size={20} color="#4A90E2" />
-            <Text style={styles.detailText}>{item.date}</Text>
+            <Text style={styles.detailText}>{item.Date}</Text>
           </View>
           <View style={styles.detailItem}>
             <Ionicons name="location-outline" size={20} color="#4A90E2" />
@@ -119,13 +122,6 @@ export const AdsScreenSeller = () => {
 };
 
 const styles = StyleSheet.create({
-  // ... (existing styles)
-  deleteButton: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    padding: 10,
-  },
   container: {
     flex: 1,
     backgroundColor: '#F0F8FF',
@@ -195,7 +191,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#555555',
   },
+  deleteButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    padding: 10,
+  },
+  adImage: {
+    width: '100%',
+    height: 200,
+    marginBottom: 15,
+    borderRadius: 10,
+  },
 });
 
 export default AdsScreenSeller;
-
