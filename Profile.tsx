@@ -7,12 +7,18 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
+  ScrollView,
+  Image,
+  Alert,
 } from "react-native";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
-import firestore from '@react-native-firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { AirbnbRating } from 'react-native-ratings';
 import { Ionicons } from '@expo/vector-icons';
 import { LogBox } from 'react-native';
+import { firestore, storage } from './firebaseConfig';
+import * as ImagePicker from 'expo-image-picker';
 
 LogBox.ignoreLogs(['Warning: TapRating: Support for defaultProps']);
 
@@ -22,16 +28,18 @@ type ProfileRouteParams = {
     email: string;
     name: string;
     phone: string;
+    profilePicture?: string;
   };
 };
 
-const Profile: React.FC = () => {
+export const Profile: React.FC = () => {
   const nav = useNavigation();
   const route = useRoute<RouteProp<{ params: ProfileRouteParams }, 'params'>>();
   const { user } = route.params;
   const [email, setEmail] = useState(user.email);
   const [name, setName] = useState(user.name);
   const [phone, setPhone] = useState(user.phone);
+  const [profilePicture, setProfilePicture] = useState(user.profilePicture || null);
   const [buyerAds, setBuyerAds] = useState<any[]>([]);
   const [sellerAds, setSellerAds] = useState<any[]>([]);
   const [rating, setRating] = useState(0);
@@ -39,8 +47,12 @@ const Profile: React.FC = () => {
 
   useEffect(() => {
     const fetchAds = async () => {
-      const buyerAdsSnapshot = await firestore().collection('buyerAds').where('userId', '==', user.uid).get();
-      const sellerAdsSnapshot = await firestore().collection('sellerAds').where('userId', '==', user.uid).get();
+      const buyerAdsQuery = query(collection(firestore, 'buyerAds'), where('userId', '==', user.uid));
+      const sellerAdsQuery = query(collection(firestore, 'sellerAds'), where('userId', '==', user.uid));
+      
+      const buyerAdsSnapshot = await getDocs(buyerAdsQuery);
+      const sellerAdsSnapshot = await getDocs(sellerAdsQuery);
+      
       setBuyerAds(buyerAdsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       setSellerAds(sellerAdsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     };
@@ -48,7 +60,8 @@ const Profile: React.FC = () => {
     fetchAds();
 
     const fetchRatings = async () => {
-      const ratingsSnapshot = await firestore().collection('ratings').where('userId', '==', user.uid).get();
+      const ratingsQuery = query(collection(firestore, 'ratings'), where('userId', '==', user.uid));
+      const ratingsSnapshot = await getDocs(ratingsQuery);
       const ratingsData = ratingsSnapshot.docs.map(doc => doc.data().rating);
       const average = ratingsData.reduce((acc, rating) => acc + rating, 0) / ratingsData.length || 0;
       setAverageRating(average);
@@ -57,17 +70,48 @@ const Profile: React.FC = () => {
     fetchRatings();
   }, [user.uid]);
 
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      uploadImage(result.assets[0].uri);
+    }
+  };
+
+  const uploadImage = async (uri: string) => {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    const filename = `profilePictures/${user.uid}/${Date.now()}.jpg`;
+    const storageRef = ref(storage, filename);
+
+    try {
+      await uploadBytes(storageRef, blob);
+      const downloadURL = await getDownloadURL(storageRef);
+      setProfilePicture(downloadURL);
+    } catch (error) {
+      console.error("Error uploading image: ", error);
+      Alert.alert("Error", "Failed to upload image. Please try again.");
+    }
+  };
+
   const saveProfile = async () => {
     try {
-      const userDoc = firestore().collection('users').doc(user.uid);
-      await userDoc.update({
+      const userDocRef = doc(firestore, 'users', user.uid);
+      await updateDoc(userDocRef, {
         email: email,
         name: name,
         phone: phone,
+        profilePicture: profilePicture,
       });
       nav.goBack();
     } catch (error) {
       console.error('Error updating profile:', error);
+      Alert.alert("Error", "Failed to save profile. Please try again.");
     }
   };
 
@@ -102,29 +146,41 @@ const Profile: React.FC = () => {
   const submitRating = async (newRating: number) => {
     setRating(newRating);
     try {
-      await firestore().collection('ratings').add({
+      await addDoc(collection(firestore, 'ratings'), {
         userId: user.uid,
         rating: newRating,
-        timestamp: firestore.FieldValue.serverTimestamp(),
+        timestamp: serverTimestamp(),
       });
-      const ratingsSnapshot = await firestore().collection('ratings').where('userId', '==', user.uid).get();
+      const ratingsQuery = query(collection(firestore, 'ratings'), where('userId', '==', user.uid));
+      const ratingsSnapshot = await getDocs(ratingsQuery);
       const ratingsData = ratingsSnapshot.docs.map(doc => doc.data().rating);
       const average = ratingsData.reduce((acc, rating) => acc + rating, 0) / ratingsData.length || 0;
       setAverageRating(average);
     } catch (error) {
       console.error('Error submitting rating:', error);
+      Alert.alert("Error", "Failed to submit rating. Please try again.");
     }
   };
 
   return (
     <SafeAreaView style={styles.contentView}>
-      <View style={styles.container}>
+      <ScrollView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => nav.goBack()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={28} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Profile</Text>
         </View>
+        <TouchableOpacity onPress={pickImage} style={styles.profilePictureContainer}>
+          {profilePicture ? (
+            <Image source={{ uri: profilePicture }} style={styles.profilePicture} />
+          ) : (
+            <View style={styles.profilePicturePlaceholder}>
+              <Ionicons name="person" size={60} color="#CCCCCC" />
+            </View>
+          )}
+          <Text style={styles.changePhotoText}>Change Photo</Text>
+        </TouchableOpacity>
         <TextInput
           style={styles.inputField}
           placeholder="Name"
@@ -154,16 +210,14 @@ const Profile: React.FC = () => {
           data={buyerAds}
           renderItem={renderAd}
           keyExtractor={item => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
+          scrollEnabled={false}
         />
         <Text style={styles.sectionHeader}>Seller Ads</Text>
         <FlatList
           data={sellerAds}
           renderItem={renderAd}
           keyExtractor={item => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
+          scrollEnabled={false}
         />
         <Text style={styles.sectionHeader}>Rate this user</Text>
         <AirbnbRating
@@ -176,7 +230,7 @@ const Profile: React.FC = () => {
           starContainerStyle={styles.ratingContainer}
         />
         <Text style={styles.averageRatingText}>Average Rating: {averageRating.toFixed(1)}</Text>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -189,7 +243,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F0F8FF",
-    paddingHorizontal: 20,
   },
   header: {
     flexDirection: 'row',
@@ -208,6 +261,28 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
+  profilePictureContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  profilePicture: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+  },
+  profilePicturePlaceholder: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#EEEEEE',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  changePhotoText: {
+    marginTop: 10,
+    color: '#4A90E2',
+    fontSize: 16,
+  },
   inputField: {
     borderWidth: 1,
     borderColor: '#4A90E2',
@@ -215,6 +290,7 @@ const styles = StyleSheet.create({
     height: 50,
     fontSize: 18,
     marginVertical: 10,
+    marginHorizontal: 20,
     paddingHorizontal: 10,
     color: '#333333',
   },
@@ -224,6 +300,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginTop: 20,
     marginBottom: 30,
+    marginHorizontal: 20,
   },
   saveButtonText: {
     color: '#FFFFFF',
@@ -235,14 +312,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333333',
     marginBottom: 10,
-  },
-  listContent: {
-    paddingBottom: 20,
+    marginHorizontal: 20,
   },
   adContainer: {
     backgroundColor: '#FFFFFF',
     borderRadius: 15,
     marginBottom: 20,
+    marginHorizontal: 20,
     shadowColor: '#4A90E2',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,

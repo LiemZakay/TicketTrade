@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
-import firestore from '@react-native-firebase/firestore';
-import auth from '@react-native-firebase/auth';
 import { Ionicons } from '@expo/vector-icons';
+import { auth, firestore } from './firebaseConfig';
+import { collection, getDocs, doc, getDoc, deleteDoc, query } from 'firebase/firestore';
 
 type RootStackParamList = {
   Profile: { user: any };
@@ -15,24 +15,25 @@ type AdsScreenSellerNavigationProp = NavigationProp<RootStackParamList, 'AdsScre
 export const AdsScreenSeller = () => {
   const [ads, setAds] = useState<any[]>([]);
   const nav = useNavigation<AdsScreenSellerNavigationProp>();
-  const currentUser = auth().currentUser;
+  const currentUser = auth.currentUser;
 
   useEffect(() => {
     const fetchAds = async () => {
-      const snapshot = await firestore().collection('sellerAds').get();
-      const adsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const adsCollection = collection(firestore, 'sellerAds');
+      const adsSnapshot = await getDocs(query(adsCollection));
+      const adsList = adsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setAds(adsList);
     };
 
     fetchAds();
   }, []);
 
-  const goToProfile = (userId: string) => {
-    firestore().collection('users').doc(userId).get().then((doc) => {
-      if (doc.exists) {
-        nav.navigate("Profile", { user: doc.data() });
-      }
-    });
+  const goToProfile = async (userId: string) => {
+    const userDocRef = doc(collection(firestore, 'users'), userId);
+    const userDocSnap = await getDoc(userDocRef);
+    if (userDocSnap.exists()) {
+      nav.navigate("Profile", { user: userDocSnap.data() });
+    }
   };
 
   const deleteAd = (adId: string) => {
@@ -46,7 +47,8 @@ export const AdsScreenSeller = () => {
           style: "destructive",
           onPress: async () => {
             try {
-              await firestore().collection('sellerAds').doc(adId).delete();
+              const adDocRef = doc(collection(firestore, 'sellerAds'), adId);
+              await deleteDoc(adDocRef);
               setAds(ads.filter(ad => ad.id !== adId));
               Alert.alert("Success", "Your ad has been deleted.");
             } catch (error) {

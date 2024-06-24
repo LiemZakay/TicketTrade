@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import firestore from '@react-native-firebase/firestore';
-import auth from '@react-native-firebase/auth';
+import { collection, addDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { useNavigation } from '@react-navigation/native';
+import { firestore, auth } from './firebaseConfig'; 
 
 export const SellerScreen = () => {
   const [concertName, setConcertName] = useState('');
@@ -14,12 +14,14 @@ export const SellerScreen = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
 
   const postAd = async () => {
-    const user = auth().currentUser;
+    const user = auth.currentUser;
     if (user) {
       try {
-        const userDoc = await firestore().collection('users').doc(user.uid).get();
-        const userName = userDoc.data()?.name;
-        await firestore().collection('sellerAds').add({
+        const userDocRef = doc(firestore, 'users', user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        const userName = userDocSnap.data()?.name;
+
+        await addDoc(collection(firestore, 'sellerAds'), {
           concertName,
           ticketType,
           numTickets: parseInt(numTickets),
@@ -29,8 +31,9 @@ export const SellerScreen = () => {
           phoneNumber,
           userId: user.uid,
           userName: userName,
-          createdAt: firestore.FieldValue.serverTimestamp(),
+          createdAt: serverTimestamp(),
         });
+
         Alert.alert('Success', 'Your ad has been posted!');
         // Reset form
         setConcertName('');
@@ -48,8 +51,7 @@ export const SellerScreen = () => {
 
   const nav = useNavigation();
 
-  const gobackHome= ()=>
-  {
+  const gobackHome = () => {
     nav.goBack();
   }
 

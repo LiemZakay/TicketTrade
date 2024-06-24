@@ -1,90 +1,36 @@
-import React from "react";
-import { NavigationContainer } from "@react-navigation/native";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { Register } from "./Register/Register";
-import { HomePage } from "./HomePage/HomePage";
-import { Login } from "./Login/Login";
-import Profile from "./Profile/Profile";
-import  { BuyerScreen }  from "./BuyerScreen";
-import { SellerScreen } from "./SellerScreen";
-import {AdsScreen} from "./AdsScreen";
-import {AdsScreenSeller} from "./AdsScreenSeller";
-import {ImagePickerComp} from "./PicUpload";
-
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import LoginScreen from './Login/Login'; 
+import RegisterScreen from './Register/Register';
+import HomePageScreen from './HomePage/HomePage';
+import BuyerScreen from './BuyerScreen'
+import AdsScreen from './AdsScreen';
+import AdsScreenSeller from './AdsScreenSeller';
+import {SellerScreen} from './SellerScreen';
+import {ImageUpload} from './imageUpload';
+import Profile from './Profile';
 
 
 const Stack = createNativeStackNavigator();
 
-export default function App() {
+const App: React.FC = () => {
   return (
     <NavigationContainer>
-      <Stack.Navigator>
-        <Stack.Screen
-          name="Login"
-          component={Login}
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="Register"
-          component={Register}
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="HomePage"
-          component={HomePage}
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="Profile"
-          component={Profile}
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="BuyerScreen"
-          component={BuyerScreen}
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="SellerScreen"
-          component={SellerScreen}
-          options={{
-            headerShown: false,
-          }}
-        />
-          <Stack.Screen
-          name="AdsScreen"
-          component={AdsScreen}
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="AdsScreenSeller"
-          component={AdsScreenSeller}
-          options={{
-            headerShown: false,
-          }}
-        />
-         <Stack.Screen
-          name="picUpload"
-          component={ImagePickerComp}
-          options={{
-            headerShown: false,
-          }}
-        />
-        
-        
+      <Stack.Navigator initialRouteName="Login">
+        <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Login' }} />
+        <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Register' }} />
+        <Stack.Screen name="HomeScreen" component={ HomePageScreen } options={{ title: 'HomeScreen' }} />
+        <Stack.Screen name="BuyerScreen" component={ BuyerScreen } options={{ title: 'BuyerScreen' }} />
+        <Stack.Screen name="AdsScreen" component={ AdsScreen } options={{ title: 'AdsScreen' }} />
+        <Stack.Screen name="AdsScreenSeller" component={ AdsScreenSeller } options={{ title: 'AdsScreenSeller' }} />
+        <Stack.Screen name="SellerScreen" component={ SellerScreen } options={{ title: 'SellerScreen' }} />
+        <Stack.Screen name="picUpload" component={ ImageUpload } options={{ title: 'ImageUpload' }} />
+        <Stack.Screen name="Profile" component={ Profile } options={{ title: 'Profile' }} />
+
       </Stack.Navigator>
     </NavigationContainer>
   );
-}
+};
+
+export default App;

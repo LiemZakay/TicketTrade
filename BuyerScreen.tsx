@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
-import firestore from '@react-native-firebase/firestore';
-import auth from '@react-native-firebase/auth';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Icon from 'react-native-vector-icons/Ionicons';
+import { auth, firestore } from './firebaseConfig';
+import { collection, addDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
 
 export const BuyerScreen = () => {
   const [concertName, setConcertName] = useState('');
@@ -48,13 +48,15 @@ export const BuyerScreen = () => {
   const postAd = async () => {
     if (!validateInputs()) return;
 
-    const user = auth().currentUser;
+    const user = auth.currentUser;
     if (user) {
       setIsLoading(true);
       try {
-        const userDoc = await firestore().collection('users').doc(user.uid).get();
-        const userName = userDoc.data()?.name;
-        await firestore().collection('buyerAds').add({
+        const userDocRef = doc(collection(firestore, 'users'), user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        const userName = userDocSnap.data()?.name;
+        
+        await addDoc(collection(firestore, 'buyerAds'), {
           concertName,
           ticketType,
           numTickets: parseInt(numTickets),
@@ -63,8 +65,9 @@ export const BuyerScreen = () => {
           phoneNumber,
           userId: user.uid,
           userName: userName,
-          createdAt: firestore.FieldValue.serverTimestamp(),
+          createdAt: serverTimestamp(),
         });
+        
         setIsLoading(false);
         Alert.alert('Success', 'Your ad has been posted!');
         // Reset form
