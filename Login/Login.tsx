@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, TextInput, Button, StyleSheet, TouchableOpacity, Text, Image, Alert, Switch } from 'react-native';
+import { View, TextInput, StyleSheet, TouchableOpacity, Text, Image, Alert, Switch, Pressable, ActivityIndicator, Keyboard } from 'react-native';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from './../firebaseConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -13,6 +13,7 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     loadSavedCredentials();
@@ -47,6 +48,12 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
   };
 
   const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    setIsLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       console.log('User logged in:', userCredential.user.email);
@@ -55,6 +62,8 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
     } catch (error) {
       console.error('Login failed:', error);
       Alert.alert('Login Failed', 'Please check your email and password.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -63,48 +72,68 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.logoContainer}>
-        <Image 
-          source={require('./../assets/images/Logo.png')} 
-          style={styles.logoImage}
-          resizeMode="cover"
-        />
-        <Text style={styles.logoText}>Sign in</Text>
-      </View>
-      <View style={styles.mainContent}>
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-        <View style={styles.rememberMeContainer}>
-          <Switch
-            value={rememberMe}
-            onValueChange={setRememberMe}
+    <Pressable style={styles.contentView} onPress={Keyboard.dismiss}>
+      <View style={styles.container}>
+        <View style={styles.logoContainer}>
+          <Image 
+            source={require('./../assets/images/Logo.png')} 
+            style={styles.logoImage}
+            resizeMode="contain"
           />
-          <Text style={styles.rememberMeText}>Remember Me</Text>
+          <Text style={styles.logoText}>Sign in</Text>
         </View>
-    
+        <View style={styles.mainContent}>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            placeholderTextColor="#888"
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            placeholderTextColor="#888"
+          />
+          <View style={styles.rememberMeContainer}>
+            <Switch
+              value={rememberMe}
+              onValueChange={setRememberMe}
+            />
+            <Text style={styles.rememberMeText}>Remember Me</Text>
+          </View>
+          <Pressable
+            style={({ pressed }) => [
+              styles.button,
+              { backgroundColor: pressed ? '#0056b3' : '#007AFF' },
+            ]}
+            onPress={handleLogin}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={styles.buttonText}>Login</Text>
+            )}
+          </Pressable>
+          <TouchableOpacity onPress={goToRegister}>
+            <Text style={styles.registerText}>Don't have an account? Register here.</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-      <Button title="Login" onPress={handleLogin} />
-      <TouchableOpacity onPress={goToRegister}>
-        <Text style={styles.registerText}>Don't have an account? Register here.</Text>
-      </TouchableOpacity>
-    </View>
+    </Pressable>
   );
 };
 
 const styles = StyleSheet.create({
+  contentView: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
   container: {
     flex: 1,
     justifyContent: 'center',
@@ -121,35 +150,55 @@ const styles = StyleSheet.create({
     color: '#00796B',
   },
   logoImage: {
-    width: 200, 
-    height: 200, 
+    width: 300, 
+    height: 300, 
     borderRadius: 100, 
     marginTop: 10,
   },
   mainContent: {
     marginBottom: 30,
-    width: '80%',
+    width: '85%',
   },
   input: {
     width: '100%',
-    padding: 10,
-    marginBottom: 10,
+    backgroundColor: 'white',
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 15,
+    fontSize: 16,
+    textAlign: 'left',
   },
   rememberMeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 15,
   },
   rememberMeText: {
     marginLeft: 8,
     fontSize: 14,
     color: '#00796B',
   },
-  registerText: {
+  button: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    padding: 15,
     marginTop: 10,
-    color: 'blue',
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  registerText: {
+    marginTop: 20,
+    color: '#007AFF',
+    fontSize: 16,
+    textAlign: 'center',
   },
 });
 
