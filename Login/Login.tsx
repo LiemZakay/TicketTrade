@@ -1,141 +1,156 @@
-import { useNavigation } from "@react-navigation/native";
-import React, { useState } from "react";
-import {
-  SafeAreaView,
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  Pressable,
-  Keyboard,
-  Alert,
-  Image,
-  TouchableOpacity,
-} from "react-native";
-import { CTAButton } from "../Components/CTAButton/CTAButton";
+import React, { useState, useEffect } from 'react';
+import { View, TextInput, Button, StyleSheet, TouchableOpacity, Text, Image, Alert, Switch } from 'react-native';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from './../firebaseConfig';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import auth from '@react-native-firebase/auth';
+type LoginProps = {
+  navigation: NativeStackNavigationProp<any>;
+};
 
+export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
 
-export const Login = () => {
-  const [email, setEmail] = useState<string | undefined>();
-  const [password, setPassword] = useState<string | undefined>();
+  useEffect(() => {
+    loadSavedCredentials();
+  }, []);
 
-  const nav = useNavigation<NativeStackNavigationProp<any>>();
-
-  const goToRegistration = () => {
-    nav.push("Register");
-  };
-
-  const goToMainFlow = async () => {
+  const loadSavedCredentials = async () => {
     try {
-      if (email && password) {
-        const userCredential = await auth().signInWithEmailAndPassword(email, password);
-        console.log('User signed in:', userCredential.user.email);
-        nav.push('HomePage');
-      } else {
-        console.error('Email and password are required');
+      const savedEmail = await AsyncStorage.getItem('savedEmail');
+      const savedPassword = await AsyncStorage.getItem('savedPassword');
+      if (savedEmail && savedPassword) {
+        setEmail(savedEmail);
+        setPassword(savedPassword);
+        setRememberMe(true);
       }
     } catch (error) {
-      console.error('Error during sign-in:', error);
+      console.error('Error loading saved credentials:', error);
     }
   };
-  
+
+  const saveCredentials = async () => {
+    try {
+      if (rememberMe) {
+        await AsyncStorage.setItem('savedEmail', email);
+        await AsyncStorage.setItem('savedPassword', password);
+      } else {
+        await AsyncStorage.removeItem('savedEmail');
+        await AsyncStorage.removeItem('savedPassword');
+      }
+    } catch (error) {
+      console.error('Error saving credentials:', error);
+    }
+  };
+
+  const handleLogin = async () => {
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.log('User logged in:', userCredential.user.email);
+      await saveCredentials();
+      navigation.replace('HomeScreen');
+    } catch (error) {
+      console.error('Login failed:', error);
+      Alert.alert('Login Failed', 'Please check your email and password.');
+    }
+  };
+
+  const goToRegister = () => {
+    navigation.replace('Register');
+  };
+
   return (
-    <Pressable style={styles.contentView} onPress={Keyboard.dismiss}>
-      <SafeAreaView style={styles.contentView}>
-        <View style={styles.container}>
-          <View style={styles.logoContainer}>
-          <Image 
-              source={require("./../assets/images/Logo.png")} 
-              style={styles.logoImage}
-              resizeMode="cover"
-            />
-            <Text style={styles.logoText}>Sign up</Text>
-          </View>
-          <View style={styles.mainContent}>
-            <TextInput
-              style={styles.loginTextField}
-              placeholder="Email"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              inputMode="email"
-            />
-            <TextInput
-              style={styles.loginTextField}
-              placeholder="Password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
-            <TouchableOpacity onPress={() => Alert.alert('Forgot Password')}>
-              <Text style={styles.forgotPasswordText}>Forgot password</Text>
-            </TouchableOpacity>
-          </View>
-          <CTAButton title="Login" onPress={goToMainFlow} variant="primary" />
-          <TouchableOpacity onPress={goToRegistration}>
-            <Text style={styles.signUpText}>Sign up</Text>
-          </TouchableOpacity>
+    <View style={styles.container}>
+      <View style={styles.logoContainer}>
+        <Image 
+          source={require('./../assets/images/Logo.png')} 
+          style={styles.logoImage}
+          resizeMode="cover"
+        />
+        <Text style={styles.logoText}>Sign in</Text>
+      </View>
+      <View style={styles.mainContent}>
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Password"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+        />
+        <View style={styles.rememberMeContainer}>
+          <Switch
+            value={rememberMe}
+            onValueChange={setRememberMe}
+          />
+          <Text style={styles.rememberMeText}>Remember Me</Text>
         </View>
-      </SafeAreaView>
-    </Pressable>
+    
+      </View>
+      <Button title="Login" onPress={handleLogin} />
+      <TouchableOpacity onPress={goToRegister}>
+        <Text style={styles.registerText}>Don't have an account? Register here.</Text>
+      </TouchableOpacity>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  contentView: {
-    flex: 1,
-    backgroundColor: "#E0F7FA",
-  },
   container: {
     flex: 1,
-    marginHorizontal: 50,
-    backgroundColor: "#E0F7FA",
-    paddingTop: 20,
-    justifyContent: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#E0F7FA',
   },
   logoContainer: {
-    alignItems: "center",
+    alignItems: 'center',
     marginBottom: 40,
   },
   logoText: {
     fontSize: 35,
-    fontWeight: "bold",
-    color: "#00796B",
+    fontWeight: 'bold',
+    color: '#00796B',
   },
   logoImage: {
-    resizeMode: "contain",
     width: 200, 
     height: 200, 
     borderRadius: 100, 
-    marginTop: 10,  
+    marginTop: 10,
   },
   mainContent: {
     marginBottom: 30,
+    width: '80%',
   },
-  loginTextField: {
-    borderBottomWidth: 1,
-    height: 50,
-    fontSize: 18,
-    marginVertical: 10,
-    fontWeight: "300",
-    borderBottomColor: "#00796B",
-    color: "#00796B",
+  input: {
+    width: '100%',
+    padding: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#ccc',
   },
-  forgotPasswordText: {
+  rememberMeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  rememberMeText: {
+    marginLeft: 8,
     fontSize: 14,
-    color: "#00796B",
-    textAlign: "right",
-    marginVertical: 10,
+    color: '#00796B',
   },
-  signUpText: {
-    fontSize: 16,
-    color: "#00796B",
-    textAlign: "center",
-    marginTop: 20,
+  registerText: {
+    marginTop: 10,
+    color: 'blue',
   },
 });
 
-export default Login;
+export default LoginScreen;
