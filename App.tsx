@@ -1,20 +1,36 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import LoginScreen from './Login/Login'; 
+import RegisterScreen from './Register/Register';
+import HomePageScreen from './HomePage/HomePage';
+import BuyerScreen from './BuyerScreen'
+import AdsScreen from './AdsScreen';
+import AdsScreenSeller from './AdsScreenSeller';
+import {SellerScreen} from './SellerScreen';
+import {ImageUpload} from './imageUpload';
+import Profile from './Profile';
 
-export default function App() {
+
+const Stack = createNativeStackNavigator();
+
+const App: React.FC = () => {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
-  );
-}
+    <NavigationContainer>
+      <Stack.Navigator initialRouteName="Login">
+        <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Login' }} />
+        <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Register' }} />
+        <Stack.Screen name="HomeScreen" component={ HomePageScreen } options={{ title: 'HomeScreen' }} />
+        <Stack.Screen name="BuyerScreen" component={ BuyerScreen } options={{ title: 'BuyerScreen' }} />
+        <Stack.Screen name="AdsScreen" component={ AdsScreen } options={{ title: 'AdsScreen' }} />
+        <Stack.Screen name="AdsScreenSeller" component={ AdsScreenSeller } options={{ title: 'AdsScreenSeller' }} />
+        <Stack.Screen name="SellerScreen" component={ SellerScreen } options={{ title: 'SellerScreen' }} />
+        <Stack.Screen name="picUpload" component={ ImageUpload } options={{ title: 'ImageUpload' }} />
+        <Stack.Screen name="Profile" component={ Profile } options={{ title: 'Profile' }} />
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+};
+
+export default App;
