@@ -12,12 +12,12 @@ import {
   Alert,
 } from "react-native";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
-import { collection, query, where, getDocs, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, addDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { AirbnbRating } from 'react-native-ratings';
 import { Ionicons } from '@expo/vector-icons';
 import { LogBox } from 'react-native';
-import { firestore, storage } from './firebaseConfig';
+import { firestore, storage, auth } from './firebaseConfig';
 import * as ImagePicker from 'expo-image-picker';
 
 LogBox.ignoreLogs(['Warning: TapRating: Support for defaultProps']);
@@ -44,8 +44,23 @@ export const Profile: React.FC = () => {
   const [sellerAds, setSellerAds] = useState<any[]>([]);
   const [rating, setRating] = useState(0);
   const [averageRating, setAverageRating] = useState(0);
+  const [isCurrentUser, setIsCurrentUser] = useState(false);
 
   useEffect(() => {
+    const currentUser = auth.currentUser;
+    setIsCurrentUser(currentUser?.uid === user.uid);
+
+    const refreshUserData = async () => {
+      const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        setEmail(userData.email);
+        setName(userData.name);
+        setPhone(userData.phone);
+        setProfilePicture(userData.profilePicture);
+      }
+    };
+
     const fetchAds = async () => {
       const buyerAdsQuery = query(collection(firestore, 'buyerAds'), where('userId', '==', user.uid));
       const sellerAdsQuery = query(collection(firestore, 'sellerAds'), where('userId', '==', user.uid));
@@ -57,8 +72,6 @@ export const Profile: React.FC = () => {
       setSellerAds(sellerAdsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     };
 
-    fetchAds();
-
     const fetchRatings = async () => {
       const ratingsQuery = query(collection(firestore, 'ratings'), where('userId', '==', user.uid));
       const ratingsSnapshot = await getDocs(ratingsQuery);
@@ -67,10 +80,17 @@ export const Profile: React.FC = () => {
       setAverageRating(average);
     };
 
+    refreshUserData();
+    fetchAds();
     fetchRatings();
   }, [user.uid]);
 
   const pickImage = async () => {
+    if (!isCurrentUser) {
+      Alert.alert("Permission Denied", "You can only edit your own profile.");
+      return;
+    }
+
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -84,6 +104,8 @@ export const Profile: React.FC = () => {
   };
 
   const uploadImage = async (uri: string) => {
+    if (!isCurrentUser) return;
+
     const response = await fetch(uri);
     const blob = await response.blob();
     const filename = `profilePictures/${user.uid}/${Date.now()}.jpg`;
@@ -93,6 +115,9 @@ export const Profile: React.FC = () => {
       await uploadBytes(storageRef, blob);
       const downloadURL = await getDownloadURL(storageRef);
       setProfilePicture(downloadURL);
+      
+      const userDocRef = doc(firestore, 'users', user.uid);
+      await updateDoc(userDocRef, { profilePicture: downloadURL });
     } catch (error) {
       console.error("Error uploading image: ", error);
       Alert.alert("Error", "Failed to upload image. Please try again.");
@@ -100,6 +125,11 @@ export const Profile: React.FC = () => {
   };
 
   const saveProfile = async () => {
+    if (!isCurrentUser) {
+      Alert.alert("Permission Denied", "You can only edit your own profile.");
+      return;
+    }
+
     try {
       const userDocRef = doc(firestore, 'users', user.uid);
       await updateDoc(userDocRef, {
@@ -108,6 +138,8 @@ export const Profile: React.FC = () => {
         phone: phone,
         profilePicture: profilePicture,
       });
+      
+      Alert.alert("Success", "Profile updated successfully");
       nav.goBack();
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -171,7 +203,7 @@ export const Profile: React.FC = () => {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Profile</Text>
         </View>
-        <TouchableOpacity onPress={pickImage} style={styles.profilePictureContainer}>
+        <TouchableOpacity onPress={pickImage} style={styles.profilePictureContainer} disabled={!isCurrentUser}>
           {profilePicture ? (
             <Image source={{ uri: profilePicture }} style={styles.profilePicture} />
           ) : (
@@ -179,32 +211,37 @@ export const Profile: React.FC = () => {
               <Ionicons name="person" size={60} color="#CCCCCC" />
             </View>
           )}
-          <Text style={styles.changePhotoText}>Change Photo</Text>
+          {isCurrentUser && <Text style={styles.changePhotoText}>Change Photo</Text>}
         </TouchableOpacity>
         <TextInput
-          style={styles.inputField}
+          style={[styles.inputField, !isCurrentUser && styles.disabledInput]}
           placeholder="Name"
           value={name}
           onChangeText={setName}
+          editable={isCurrentUser}
         />
         <TextInput
-          style={styles.inputField}
+          style={[styles.inputField, !isCurrentUser && styles.disabledInput]}
           placeholder="Email"
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
           keyboardType="email-address"
+          editable={isCurrentUser}
         />
         <TextInput
-          style={styles.inputField}
+          style={[styles.inputField, !isCurrentUser && styles.disabledInput]}
           placeholder="Phone"
           value={phone}
           onChangeText={setPhone}
           keyboardType="phone-pad"
+          editable={isCurrentUser}
         />
-        <TouchableOpacity onPress={saveProfile} style={styles.saveButton}>
-          <Text style={styles.saveButtonText}>Save</Text>
-        </TouchableOpacity>
+        {isCurrentUser && (
+          <TouchableOpacity onPress={saveProfile} style={styles.saveButton}>
+            <Text style={styles.saveButtonText}>Save</Text>
+          </TouchableOpacity>
+        )}
         <Text style={styles.sectionHeader}>Buyer Ads</Text>
         <FlatList
           data={buyerAds}
@@ -293,6 +330,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     paddingHorizontal: 10,
     color: '#333333',
+  },
+  disabledInput: {
+    backgroundColor: '#F0F0F0',
+    color: '#888888',
   },
   saveButton: {
     backgroundColor: '#4A90E2',
