@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, TextInput, StyleSheet, SafeAreaView, Pressable, Text, Alert, Keyboard } from 'react-native';
+import { View, TextInput, StyleSheet, SafeAreaView, Pressable, Text, Alert, Keyboard, Image, ActivityIndicator } from 'react-native';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { collection, doc, setDoc } from 'firebase/firestore';
-import { auth, firestore } from '../firebaseConfig'; // Assuming firebaseConfig.ts is correctly set up
+import { auth, firestore } from '../firebaseConfig';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // Import AsyncStorage
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 type RegisterProps = {
@@ -14,8 +15,15 @@ export const RegisterScreen: React.FC<RegisterProps> = ({ navigation }) => {
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const registerAndGoToMainFlow = async () => {
+    if (!name || !email || !password || !phone) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    setIsLoading(true);
     try {
       const response = await createUserWithEmailAndPassword(auth, email, password);
       if (response.user) {
@@ -27,7 +35,11 @@ export const RegisterScreen: React.FC<RegisterProps> = ({ navigation }) => {
         };
         const userRef = doc(collection(firestore, 'users'), response.user.uid);
         await setDoc(userRef, userDoc);
-        navigation.replace('Login'); // Replace 'Login' with your login screen name
+
+        // AsyncStorage
+        await AsyncStorage.setItem('userLoggedIn', 'true');
+
+        navigation.replace('Login');
       }
     } catch (error: any) {
       let errorMessage = 'Registration failed';
@@ -45,6 +57,8 @@ export const RegisterScreen: React.FC<RegisterProps> = ({ navigation }) => {
           errorMessage = 'Registration failed. Please try again later';
       }
       Alert.alert('Error', errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -52,58 +66,65 @@ export const RegisterScreen: React.FC<RegisterProps> = ({ navigation }) => {
     <Pressable style={styles.contentView} onPress={Keyboard.dismiss}>
       <SafeAreaView style={styles.contentView}>
         <View style={styles.container}>
-          <View style={styles.titleContainer}>
-            <Text style={styles.titleText}>Register</Text>
-          </View>
-          <View style={styles.mainContent}>
+          <Image
+            source={require('./../assets/images/Logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <Text style={styles.titleText}>Create Account</Text>
+          <View style={styles.inputContainer}>
             <TextInput
-              style={styles.loginTextField}
-              placeholder="Name"
+              style={styles.input}
+              placeholder="Full Name"
               value={name}
               onChangeText={setName}
+              placeholderTextColor="#888"
             />
             <TextInput
-              style={styles.loginTextField}
+              style={styles.input}
               placeholder="Email"
               value={email}
               onChangeText={setEmail}
               inputMode="email"
               autoCapitalize="none"
+              placeholderTextColor="#888"
             />
             <TextInput
-              style={styles.loginTextField}
+              style={styles.input}
               placeholder="Password"
               value={password}
               onChangeText={setPassword}
               secureTextEntry
+              placeholderTextColor="#888"
             />
             <TextInput
-              style={styles.loginTextField}
+              style={styles.input}
               placeholder="Phone"
               value={phone}
               onChangeText={setPhone}
               inputMode="tel"
+              placeholderTextColor="#888"
             />
           </View>
           <Pressable
             style={({ pressed }) => [
-              {
-                backgroundColor: pressed ? '#ddd' : '#007AFF',
-              },
               styles.button,
+              { backgroundColor: pressed ? '#0056b3' : '#007AFF' },
             ]}
-            onPress={registerAndGoToMainFlow}>
-            <Text style={styles.buttonText}>Sign Up</Text>
+            onPress={registerAndGoToMainFlow}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={styles.buttonText}>Sign Up</Text>
+            )}
           </Pressable>
           <Pressable
-            style={({ pressed }) => [
-              {
-                backgroundColor: pressed ? '#ddd' : '#007AFF',
-              },
-              styles.button,
-            ]}
-            onPress={() => navigation.replace('Login')}>
-            <Text style={styles.buttonText}>Go Back</Text>
+            style={styles.textButton}
+            onPress={() => navigation.replace('Login')}
+          >
+            <Text style={styles.textButtonText}>Already have an account? Log In</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -114,45 +135,58 @@ export const RegisterScreen: React.FC<RegisterProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   contentView: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: '#f8f9fa',
   },
   container: {
     flex: 1,
-    marginHorizontal: 50,
-    backgroundColor: 'white',
-    paddingTop: 20,
-  },
-  titleContainer: {
-    flex: 1.2,
     justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#E0F7FA',
+  },
+  logo: {
+    width: 250,
+    height: 250,
+    marginBottom: 20,
   },
   titleText: {
-    fontSize: 45,
-    textAlign: 'center',
-    fontWeight: '200',
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 30,
   },
-  loginTextField: {
-    borderBottomWidth: 1,
-    height: 60,
-    fontSize: 30,
-    marginVertical: 10,
-    fontWeight: '300',
+  inputContainer: {
+    width: '85%',
   },
-  mainContent: {
-    flex: 6,
+  input: {
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 15,
+    fontSize: 16,
+    textAlign: 'left',
   },
   button: {
+    width: '85%',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#007AFF',
     borderRadius: 8,
-    height: 50,
-    marginVertical: 10,
+    padding: 15,
+    marginTop: 10,
   },
   buttonText: {
     color: 'white',
-    fontSize: 20,
-    fontWeight: '500',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  textButton: {
+    marginTop: 20,
+  },
+  textButtonText: {
+    color: '#007AFF',
+    fontSize: 16,
   },
 });
 

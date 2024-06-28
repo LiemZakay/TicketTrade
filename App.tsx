@@ -8,8 +8,8 @@ import BuyerScreen from './BuyerScreen'
 import AdsScreen from './AdsScreen';
 import AdsScreenSeller from './AdsScreenSeller';
 import {SellerScreen} from './SellerScreen';
-import {ImageUpload} from './imageUpload';
 import Profile from './Profile';
+import PopularArtistsScreen from './PopularArtistsScreen';
 
 
 const Stack = createNativeStackNavigator();
@@ -25,9 +25,8 @@ const App: React.FC = () => {
         <Stack.Screen name="AdsScreen" component={ AdsScreen } options={{ title: 'AdsScreen' }} />
         <Stack.Screen name="AdsScreenSeller" component={ AdsScreenSeller } options={{ title: 'AdsScreenSeller' }} />
         <Stack.Screen name="SellerScreen" component={ SellerScreen } options={{ title: 'SellerScreen' }} />
-        <Stack.Screen name="picUpload" component={ ImageUpload } options={{ title: 'ImageUpload' }} />
         <Stack.Screen name="Profile" component={ Profile } options={{ title: 'Profile' }} />
-
+        <Stack.Screen name="PopularArtistsScreen" component={ PopularArtistsScreen } options={{ title: 'PopularArtistsScreen' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

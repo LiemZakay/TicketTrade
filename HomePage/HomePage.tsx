@@ -4,6 +4,7 @@ import { SafeAreaView, View, Text, StyleSheet, TouchableOpacity, Alert } from "r
 import { Ionicons } from '@expo/vector-icons';
 import { auth, firestore } from '../firebaseConfig';
 import { collection, doc, getDoc } from 'firebase/firestore';
+import { signOut } from 'firebase/auth';
 
 type RootStackParamList = {
   Profile: { user: any };
@@ -12,6 +13,8 @@ type RootStackParamList = {
   AdsScreen: undefined;
   AdsScreenSeller: undefined;
   picUpload: undefined;
+  Login: undefined;
+  PopularArtistsScreen: undefined;
 };
 
 type ProfileScreenNavigationProp = NavigationProp<RootStackParamList, 'Profile'>;
@@ -70,12 +73,28 @@ export const HomePageScreen = () => {
     nav.navigate("AdsScreenSeller");
   }
 
-  const gotoImagePage = () => {
-    nav.navigate("picUpload");
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      nav.navigate('Login');
+    } catch (error) {
+      console.error('Error signing out: ', error);
+      Alert.alert('Logout Failed', 'An error occurred while logging out. Please try again.');
+    }
+  };
+
+  const spotifyfunc= async()=>  {
+    nav.navigate('PopularArtistsScreen');
   }
 
   return (
     <SafeAreaView style={styles.contentView}>
+      <View style={styles.header}>
+        <Text style={styles.headerText}>Home</Text>
+        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+          <Ionicons name="log-out-outline" size={24} color="#4A90E2" />
+        </TouchableOpacity>
+      </View>
       <View style={styles.container}>
         {user && (
           <>
@@ -94,14 +113,14 @@ export const HomePageScreen = () => {
             <TouchableOpacity onPress={AlertBuyerorSeller} style={styles.addButton}>
               <Ionicons name="add-circle-outline" size={32} color="#FFFFFF" />
             </TouchableOpacity>
-            <TouchableOpacity onPress={gotoImagePage} style={styles.button}>
-              <Text style={styles.buttonText}>Image Upload</Text>
-            </TouchableOpacity>
             <TouchableOpacity onPress={goToAds} style={styles.button}>
               <Text style={styles.buttonText}>View Ads Buyers</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={goToAdsSeller} style={styles.button}>
               <Text style={styles.buttonText}>View Ads Sellers</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={spotifyfunc} style={styles.button}>
+              <Text style={styles.buttonText}>Spotify</Text>
             </TouchableOpacity>
           </>
         )}
@@ -114,6 +133,23 @@ const styles = StyleSheet.create({
   contentView: {
     flex: 1,
     backgroundColor: "#F0F8FF",
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 15,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  headerText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333333',
+  },
+  logoutButton: {
+    padding: 5,
   },
   container: {
     flex: 1,
