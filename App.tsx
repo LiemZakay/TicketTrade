@@ -8,7 +8,7 @@ import BuyerScreen from './BuyerScreen'
 import AdsScreen from './AdsScreen';
 import AdsScreenSeller from './AdsScreenSeller';
 import {SellerScreen} from './SellerScreen';
-import Profile from './Profile';
+import Profile from './Profile/Profile';
 import PopularArtistsScreen from './PopularArtistsScreen';
 
 
