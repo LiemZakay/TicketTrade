@@ -72,8 +72,6 @@ export const Profile: React.FC = () => {
       setSellerAds(sellerAdsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     };
 
-    fetchAds();
-
     const fetchRatings = async () => {
       const ratingsQuery = query(collection(firestore, 'ratings'), where('userId', '==', user.uid));
       const ratingsSnapshot = await getDocs(ratingsQuery);

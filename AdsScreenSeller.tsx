@@ -339,9 +339,6 @@ const styles = StyleSheet.create({
     padding: 10,
     marginRight: 10,
   },
-  deleteButton: {
-    padding: 10,
-  },
   adImage: {
     width: '100%',
     height: 200,
@@ -428,4 +425,3 @@ const styles = StyleSheet.create({
 });
 
 export default AdsScreenSeller;
-
