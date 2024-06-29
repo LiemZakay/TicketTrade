@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, Image, Modal, TextInput, Platform } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, Image, Modal, TextInput } from 'react-native';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { auth, firestore, storage } from '../firebaseConfig';
@@ -15,6 +15,7 @@ type RootStackParamList = {
 type AdsScreenSellerNavigationProp = NavigationProp<RootStackParamList, 'AdsScreenSeller'>;
 
 export const AdsScreenSeller = () => {
+  const [completedAds, setCompletedAds] = useState<Set<string>>(new Set());
   const [ads, setAds] = useState<any[]>([]);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingAd, setEditingAd] = useState<any>(null);
@@ -96,14 +97,20 @@ export const AdsScreenSeller = () => {
 
   const updateAd = async () => {
     if (!editingAd) return;
-
+  
+    // Basic validation example (add more fields as needed)
+    if (!editingAd.concertName || !editingAd.ticketType || !editingAd.numTickets || !editingAd.priceRange || !editingAd.Date || !editingAd.location || !editingAd.phoneNumber) {
+      Alert.alert("Validation Error", "Please fill out all fields.");
+      return;
+    }
+  
     try {
       let updatedAd = { ...editingAd };
       if (newImage) {
         const imageUrl = await uploadImage(newImage);
         updatedAd.imageUrl = imageUrl;
       }
-
+  
       const adDocRef = doc(collection(firestore, 'sellerAds'), editingAd.id);
       await updateDoc(adDocRef, updatedAd);
       setEditModalVisible(false);
@@ -114,52 +121,86 @@ export const AdsScreenSeller = () => {
       Alert.alert("Error", "Failed to update ad. Please try again.");
     }
   };
-
-  const renderItem = ({ item }: { item: any }) => (
-    <View style={styles.adContainer}>
-      <TouchableOpacity style={styles.adContent} onPress={() => goToProfile(item.userId)}>
-        {item.imageUrl && (
-          <Image source={{ uri: item.imageUrl }} style={styles.adImage} />
+  
+  const renderItem = ({ item }: { item: any }) => {
+    // Check if the concert date has passed
+    const concertDate = new Date(item.Date);
+    const currentDate = new Date();
+    const datePassed = concertDate < currentDate;
+  
+    const toggleCompleted = () => {
+      setCompletedAds(prevState => {
+        const newState = new Set(prevState);
+        if (newState.has(item.id)) {
+          newState.delete(item.id);
+        } else {
+          newState.add(item.id);
+        }
+        return newState;
+      });
+    };
+  
+    return (
+      <View style={styles.adContainer}>
+        {/* Toggle button to mark if date has passed */}
+        {datePassed && (
+          <TouchableOpacity 
+            style={[
+              styles.toggleButton, 
+              completedAds.has(item.id) ? styles.toggleButtonCompleted : styles.toggleButtonIncomplete
+            ]}
+            onPress={toggleCompleted}
+          >
+            <Text style={styles.toggleButtonText}>
+              {completedAds.has(item.id) ? 'Completed' : 'Mark as Completed'}
+            </Text>
+          </TouchableOpacity>
         )}
-        <View style={styles.adHeader}>
-          <Text style={styles.concertName}>{item.concertName}</Text>
-          <Text style={styles.userName}>by {item.userName}</Text>
-        </View>
-        <View style={styles.adDetails}>
-          <View style={styles.detailItem}>
-            <Ionicons name="ticket-outline" size={20} color="#4A90E2" />
-            <Text style={styles.detailText}>{item.ticketType} × {item.numTickets}</Text>
+        <TouchableOpacity style={styles.adContent} onPress={() => goToProfile(item.userId)}>
+          {item.imageUrl && (
+            <Image source={{ uri: item.imageUrl }} style={styles.adImage} />
+          )}
+          <View style={styles.adHeader}>
+            <Text style={styles.concertName}>{item.concertName}</Text>
+            <Text style={styles.userName}>by {item.userName}</Text>
           </View>
-          <View style={styles.detailItem}>
-            <Ionicons name="cash-outline" size={20} color="#4A90E2" />
-            <Text style={styles.detailText}>{item.priceRange}</Text>
+          <View style={styles.adDetails}>
+            <View style={styles.detailItem}>
+              <Ionicons name="ticket-outline" size={20} color="#4A90E2" />
+              <Text style={styles.detailText}>{item.ticketType} × {item.numTickets}</Text>
+            </View>
+            <View style={styles.detailItem}>
+              <Ionicons name="cash-outline" size={20} color="#4A90E2" />
+              <Text style={styles.detailText}>{item.priceRange}</Text>
+            </View>
+            <View style={styles.detailItem}>
+              <Ionicons name="calendar-outline" size={20} color="#4A90E2" />
+              <Text style={styles.detailText}>{item.Date}</Text>
+            </View>
+            <View style={styles.detailItem}>
+              <Ionicons name="location-outline" size={20} color="#4A90E2" />
+              <Text style={styles.detailText}>{item.location}</Text>
+            </View>
+            <View style={styles.detailItem}>
+              <Ionicons name="call-outline" size={20} color="#4A90E2" />
+              <Text style={styles.detailText}>{item.phoneNumber}</Text>
+            </View>
           </View>
-          <View style={styles.detailItem}>
-            <Ionicons name="calendar-outline" size={20} color="#4A90E2" />
-            <Text style={styles.detailText}>{item.Date}</Text>
+        </TouchableOpacity>
+  
+        {currentUser && item.userId === currentUser.uid && (
+          <View style={styles.actionButtons}>
+            <TouchableOpacity style={styles.editButton} onPress={() => editAd(item)}>
+              <Ionicons name="create-outline" size={24} color="#4A90E2" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.deleteButton} onPress={() => deleteAd(item.id)}>
+              <Ionicons name="trash-outline" size={24} color="#FF6B6B" />
+            </TouchableOpacity>
           </View>
-          <View style={styles.detailItem}>
-            <Ionicons name="location-outline" size={20} color="#4A90E2" />
-            <Text style={styles.detailText}>{item.location}</Text>
-          </View>
-          <View style={styles.detailItem}>
-            <Ionicons name="call-outline" size={20} color="#4A90E2" />
-            <Text style={styles.detailText}>{item.phoneNumber}</Text>
-          </View>
-        </View>
-      </TouchableOpacity>
-      {currentUser && item.userId === currentUser.uid && (
-        <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.editButton} onPress={() => editAd(item)}>
-            <Ionicons name="create-outline" size={24} color="#4A90E2" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.deleteButton} onPress={() => deleteAd(item.id)}>
-            <Ionicons name="trash-outline" size={24} color="#FF6B6B" />
-          </TouchableOpacity>
-        </View>
-      )}
-    </View>
-  );
+        )}
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -311,6 +352,26 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 16,
     color: '#4A90E2',
+  },
+  toggleButton: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    zIndex: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 15,
+  },
+  toggleButtonIncomplete: {
+    backgroundColor: '#FFD700',
+  },
+  toggleButtonCompleted: {
+    backgroundColor: '#32CD32',
+  },
+  toggleButtonText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 12,
   },
   adDetails: {
     flexDirection: 'row',
