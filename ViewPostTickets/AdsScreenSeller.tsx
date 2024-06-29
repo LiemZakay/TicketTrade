@@ -34,7 +34,6 @@ export const AdsScreenSeller = () => {
     setIsLoading(true);
     console.log('Fetching ads...');
     try {
-      // Try to get ads from AsyncStorage first
       const storedAds = await AsyncStorage.getItem('sellerAds');
       if (storedAds) {
         console.log('Ads found in AsyncStorage');
@@ -45,7 +44,6 @@ export const AdsScreenSeller = () => {
         const adsSnapshot = await getDocs(query(adsCollection));
         const adsList = adsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setAds(adsList);
-        // Save ads to AsyncStorage
         await AsyncStorage.setItem('sellerAds', JSON.stringify(adsList));
       }
     } catch (error) {
@@ -103,7 +101,7 @@ export const AdsScreenSeller = () => {
   const editAd = (ad: any) => {
     console.log('Editing ad:', ad.id);
     setEditingAd(ad);
-    setNewImage(null);
+    setNewImage(ad.imageUrl);
     setEditModalVisible(true);
   };
 
@@ -118,8 +116,7 @@ export const AdsScreenSeller = () => {
 
     if (!result.canceled) {
       console.log('Image picked:', result.assets[0].uri);
-      const localUri = await saveImageLocally(result.assets[0].uri);
-      setNewImage(localUri);
+      setNewImage(result.assets[0].uri);
     }
   };
 
@@ -157,7 +154,6 @@ export const AdsScreenSeller = () => {
     console.log('Updating ad:', editingAd.id);
     setIsLoading(true);
 
-    // Basic validation
     if (!editingAd.concertName || !editingAd.ticketType || !editingAd.numTickets || !editingAd.priceRange || !editingAd.Date || !editingAd.location || !editingAd.phoneNumber) {
       Alert.alert("Validation Error", "Please fill out all fields.");
       setIsLoading(false);
@@ -166,7 +162,7 @@ export const AdsScreenSeller = () => {
   
     try {
       let updatedAd = { ...editingAd };
-      if (newImage) {
+      if (newImage && newImage !== editingAd.imageUrl) {
         const imageUrl = await uploadImage(newImage);
         updatedAd.imageUrl = imageUrl;
       }
@@ -174,7 +170,6 @@ export const AdsScreenSeller = () => {
       const adDocRef = doc(collection(firestore, 'sellerAds'), editingAd.id);
       await updateDoc(adDocRef, updatedAd);
       
-      // Update local state and AsyncStorage
       const updatedAds = ads.map(ad => ad.id === editingAd.id ? updatedAd : ad);
       setAds(updatedAds);
       await AsyncStorage.setItem('sellerAds', JSON.stringify(updatedAds));
@@ -297,9 +292,9 @@ export const AdsScreenSeller = () => {
             <TouchableOpacity style={styles.imagePickerButton} onPress={pickImage}>
               <Text style={styles.imagePickerText}>Change Image</Text>
             </TouchableOpacity>
-            {(newImage || editingAd?.imageUrl) && (
+            {newImage && (
               <Image 
-                source={{ uri: newImage || editingAd?.imageUrl }} 
+                source={{ uri: newImage }} 
                 style={styles.previewImage} 
               />
             )}
@@ -362,6 +357,22 @@ export const AdsScreenSeller = () => {
 };
 
 const styles = StyleSheet.create({
+  imagePickerButton: {
+    backgroundColor: '#4A90E2',
+    padding: 10,
+    borderRadius: 5,
+    marginBottom: 15,
+  },
+  imagePickerText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+previewImage: {
+    width: 200,
+    height: 200,
+    marginBottom: 15,
+    borderRadius: 10,
+  },
   spinner: {
     flex: 1,
     justifyContent: 'center',
@@ -383,7 +394,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#4A90E2',
     paddingTop: 40,
     paddingBottom: 20,
-    paddingHorizontal: 20,
   },
   backButton: {
     marginRight: 15,
@@ -539,22 +549,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     fontSize: 16,
-  },
-  imagePickerButton: {
-    backgroundColor: '#4A90E2',
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 15,
-  },
-  imagePickerText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  previewImage: {
-    width: 200,
-    height: 200,
-    marginBottom: 15,
-    borderRadius: 10,
   },
 });
 

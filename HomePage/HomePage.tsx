@@ -1,13 +1,14 @@
 import { NavigationProp, useNavigation } from "@react-navigation/native";
 import React, { useState, useEffect } from "react";
-import { SafeAreaView, View, Text, StyleSheet, TouchableOpacity, Switch, StatusBar, FlatList, Image, TextInput, Alert, Modal } from "react-native";
+import { SafeAreaView, View, Text, StyleSheet, TouchableOpacity, Switch, StatusBar, FlatList, Image, TextInput, Alert, Modal, ActivityIndicator } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
-import { auth, firestore } from '../firebaseConfig';
+import { auth, firestore, storage } from '../firebaseConfig';
 import { collection, doc, getDoc, getDocs, query, deleteDoc, updateDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
-import FontAwesome from 'react-native-vector-icons/FontAwesome'
+import FontAwesome from 'react-native-vector-icons/FontAwesome';
+import * as ImagePicker from 'expo-image-picker';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-//screen navigation info
 type RootStackParamList = {
   Profile: { user: any };
   BuyerScreen: undefined;
@@ -18,7 +19,7 @@ type RootStackParamList = {
 
 type ProfileScreenNavigationProp = NavigationProp<RootStackParamList, 'Profile'>;
 
-export const HomePageScreen = () => {
+export const HomePageScreen: React.FC = () => {
   const [user, setUser] = useState<any>(null);
   const [isSellerMode, setIsSellerMode] = useState(false);
   const [ads, setAds] = useState<any[]>([]);
@@ -26,6 +27,9 @@ export const HomePageScreen = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingAd, setEditingAd] = useState<any>(null);
+  const [newImage, setNewImage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const nav = useNavigation<ProfileScreenNavigationProp>();
 
   useEffect(() => {
@@ -33,6 +37,7 @@ export const HomePageScreen = () => {
     fetchAds();
   }, [isSellerMode]);
 
+  // Fetch current user data
   const fetchUserData = async () => {
     const currentUser = auth.currentUser;
     if (currentUser) {
@@ -43,15 +48,24 @@ export const HomePageScreen = () => {
       }
     }
   };
-//there is one screen for users and one screen for seller 
+
+  // Fetch ads based on current mode (buyer/seller)
   const fetchAds = async () => {
-    const adsCollection = collection(firestore, isSellerMode ? 'sellerAds' : 'buyerAds');
-    const adsSnapshot = await getDocs(query(adsCollection));
-    const adsList = adsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    setAds(adsList);
-    setFilteredAds(adsList);
+    setIsLoading(true);
+    try {
+      const adsCollection = collection(firestore, isSellerMode ? 'sellerAds' : 'buyerAds');
+      const adsSnapshot = await getDocs(query(adsCollection));
+      const adsList = adsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setAds(adsList);
+      setFilteredAds(adsList);
+    } catch (error) {
+      console.error('Error fetching ads:', error);
+      Alert.alert('Error', 'Failed to fetch ads. Please try again.');
+    }
+    setIsLoading(false);
   };
-//navigate to profile, with the current user
+
+  // Navigate to profile screen
   const goToProfile = async (userId: string) => {
     const userDocRef = doc(collection(firestore, 'users'), userId);
     const userDocSnap = await getDoc(userDocRef);
@@ -59,7 +73,8 @@ export const HomePageScreen = () => {
       nav.navigate("Profile", { user: userDocSnap.data() });
     }
   };
-  //logout feature 
+
+  // Handle user logout
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -68,7 +83,8 @@ export const HomePageScreen = () => {
       console.error('Error signing out: ', error);
     }
   };
-//navigate to the Ad posts screens 
+
+  // Alert for choosing buyer or seller mode
   const AlertBuyerorSeller = () => {
     Alert.alert(
       "Ticket Trade",
@@ -88,6 +104,7 @@ export const HomePageScreen = () => {
     );
   }
 
+  // Handle search functionality
   const handleSearch = (query: string) => {
     setSearchQuery(query);
     const filtered = ads.filter(ad => {
@@ -99,6 +116,7 @@ export const HomePageScreen = () => {
     setFilteredAds(filtered);
   };
 
+  // Delete an ad
   const deleteAd = (adId: string) => {
     Alert.alert(
       "Delete Ad",
@@ -109,47 +127,92 @@ export const HomePageScreen = () => {
           text: "Delete", 
           style: "destructive",
           onPress: async () => {
+            setIsLoading(true);
             try {
               const adDocRef = doc(collection(firestore, isSellerMode ? 'sellerAds' : 'buyerAds'), adId);
               await deleteDoc(adDocRef);
-              fetchAds(); // Refresh the ads list
+              fetchAds();
               Alert.alert("Success", "Your ad has been deleted.");
             } catch (error) {
               console.error("Error deleting ad:", error);
               Alert.alert("Error", "Failed to delete ad. Please try again.");
             }
+            setIsLoading(false);
           }
         }
       ]
     );
   };
 
+  // Edit an ad
   const editAd = (ad: any) => {
     setEditingAd(ad);
+    setNewImage(ad.imageUrl);
     setEditModalVisible(true);
   };
 
+  // Pick an image from the device
+  const pickImage = async () => {
+    if (!isSellerMode) {
+      Alert.alert("Not Allowed", "Only sellers can change the image.");
+      return;
+    }
+
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      setNewImage(result.assets[0].uri);
+    }
+  };
+
+  // Upload image to Firebase Storage
+  const uploadImage = async (uri: string) => {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    const filename = uri.substring(uri.lastIndexOf('/') + 1);
+    const storageRef = ref(storage, `adImages/${filename}`);
+    await uploadBytes(storageRef, blob);
+    const downloadUrl = await getDownloadURL(storageRef);
+    return downloadUrl;
+  };
+
+  // Update an ad
   const updateAd = async () => {
     if (!editingAd) return;
 
+    setIsUpdating(true);
     try {
+      let updatedAd = { ...editingAd };
+      if (newImage && newImage !== editingAd.imageUrl) {
+        const imageUrl = await uploadImage(newImage);
+        updatedAd.imageUrl = imageUrl;
+      }
+
       const adDocRef = doc(collection(firestore, isSellerMode ? 'sellerAds' : 'buyerAds'), editingAd.id);
-      await updateDoc(adDocRef, editingAd);
+      await updateDoc(adDocRef, updatedAd);
       setEditModalVisible(false);
-      fetchAds(); // Refresh the ads list
+      fetchAds();
       Alert.alert("Success", "Your ad has been updated.");
     } catch (error) {
       console.error("Error updating ad:", error);
       Alert.alert("Error", "Failed to update ad. Please try again.");
     }
+    setIsUpdating(false);
   };
 
+  // Check if a date has passed
   const isDatePassed = (date: string) => {
     const concertDate = new Date(date);
     const currentDate = new Date();
     return concertDate < currentDate;
   };
 
+  // Render individual ad item
   const renderItem = ({ item }: { item: any }) => (
     <View style={styles.adContainer}>
       {isDatePassed(item.date) && (
@@ -197,7 +260,8 @@ export const HomePageScreen = () => {
     </View>
   );
 
-  const gotospotify=()=> {
+  // Navigate to Spotify screen
+  const gotoSpotify = () => {
     nav.navigate('PopularArtistsScreen');
   }
 
@@ -213,10 +277,9 @@ export const HomePageScreen = () => {
           <TouchableOpacity onPress={handleLogout} style={styles.iconButton}>
             <Ionicons name="log-out-outline" size={32} color="#FFFFFF" />
           </TouchableOpacity>
-          <TouchableOpacity onPress={gotospotify} style={styles.iconButton}>
+          <TouchableOpacity onPress={gotoSpotify} style={styles.iconButton}>
             <FontAwesome name="spotify" size={32} color="#FFFFFF" />
           </TouchableOpacity>
-
         </View>
       </View>
       <View style={styles.content}>
@@ -246,13 +309,17 @@ export const HomePageScreen = () => {
             placeholderTextColor="#A0A0A0"
           />
         </View>
-        <FlatList
-          data={filteredAds}
-          renderItem={renderItem}
-          keyExtractor={item => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-        />
+        {isLoading ? (
+          <ActivityIndicator size="large" color="#4A90E2" style={styles.spinner} />
+        ) : (
+          <FlatList
+            data={filteredAds}
+            renderItem={renderItem}
+            keyExtractor={item => item.id}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContent}
+          />
+        )}
       </View>
       <TouchableOpacity onPress={AlertBuyerorSeller} style={styles.addButton}>
         <Ionicons name="add-circle-outline" size={32} color="#FFFFFF" />
@@ -266,6 +333,17 @@ export const HomePageScreen = () => {
         <View style={styles.centeredView}>
           <View style={styles.modalView}>
             <Text style={styles.modalTitle}>Edit Ad</Text>
+            {isSellerMode && (
+              <TouchableOpacity style={styles.imagePickerButton} onPress={pickImage}>
+                <Text style={styles.imagePickerText}>Change Image</Text>
+              </TouchableOpacity>
+            )}
+            {newImage && (
+              <Image 
+                source={{ uri: newImage }} 
+                style={styles.previewImage} 
+              />
+            )}
             <TextInput
               style={styles.input}
               value={editingAd?.concertName}
@@ -307,8 +385,12 @@ export const HomePageScreen = () => {
               <TouchableOpacity style={[styles.button, styles.buttonClose]} onPress={() => setEditModalVisible(false)}>
                 <Text style={styles.textStyle}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.button, styles.buttonSubmit]} onPress={updateAd}>
-                <Text style={styles.textStyle}>Update</Text>
+              <TouchableOpacity style={[styles.button, styles.buttonSubmit]} onPress={updateAd} disabled={isUpdating}>
+                {isUpdating ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.textStyle}>Update</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -317,7 +399,6 @@ export const HomePageScreen = () => {
     </SafeAreaView>
   );
 };
-
 
 const styles = StyleSheet.create({
   container: {
@@ -529,6 +610,27 @@ const styles = StyleSheet.create({
   datePassedText: {
     color: '#FFFFFF',
     fontWeight: 'bold',
+  },
+  imagePickerButton: {
+    backgroundColor: '#4A90E2',
+    padding: 10,
+    borderRadius: 5,
+    marginBottom: 15,
+  },
+  imagePickerText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  previewImage: {
+    width: 200,
+    height: 200,
+    marginBottom: 15,
+    borderRadius: 10,
+  },
+  spinner: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

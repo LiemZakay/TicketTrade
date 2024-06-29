@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import LoginScreen from './Login/Login'; 
 import RegisterScreen from './Register/Register';
-import HomePageScreen from './HomePage/HomePage';
+import {HomePageScreen} from './HomePage/HomePage';
 import BuyerScreen from './PostTickets/BuyerScreen'
 import AdsScreen from './ViewPostTickets/AdsScreen';
 import AdsScreenSeller from './ViewPostTickets/AdsScreenSeller';
