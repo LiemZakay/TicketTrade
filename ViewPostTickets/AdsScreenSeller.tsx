@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, Image, Modal, TextInput, Platform } from 'react-native';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { auth, firestore, storage } from './firebaseConfig';
+import { auth, firestore, storage } from '../firebaseConfig';
 import { collection, getDocs, doc, getDoc, deleteDoc, query, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import * as ImagePicker from 'expo-image-picker';
@@ -253,7 +253,6 @@ export const AdsScreenSeller = () => {
 };
 
 const styles = StyleSheet.create({
-  // ... (existing styles)
   deleteButton: {
     position: 'absolute',
     top: 10,
@@ -337,7 +336,8 @@ const styles = StyleSheet.create({
   },
   editButton: {
     padding: 10,
-    marginRight: 10,
+    marginRight: 40,
+    top: 10,
   },
   adImage: {
     width: '100%',

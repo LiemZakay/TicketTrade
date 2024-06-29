@@ -4,12 +4,12 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import LoginScreen from './Login/Login'; 
 import RegisterScreen from './Register/Register';
 import HomePageScreen from './HomePage/HomePage';
-import BuyerScreen from './BuyerScreen'
-import AdsScreen from './AdsScreen';
-import AdsScreenSeller from './AdsScreenSeller';
-import {SellerScreen} from './SellerScreen';
+import BuyerScreen from './PostTickets/BuyerScreen'
+import AdsScreen from './ViewPostTickets/AdsScreen';
+import AdsScreenSeller from './ViewPostTickets/AdsScreenSeller';
+import {SellerScreen} from './PostTickets/SellerScreen';
 import Profile from './Profile/Profile';
-import PopularArtistsScreen from './PopularArtistsScreen';
+import PopularArtistsScreen from './SpotifyApi/PopularArtistsScreen';
 
 
 const Stack = createNativeStackNavigator();

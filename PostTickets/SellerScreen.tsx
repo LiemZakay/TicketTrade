@@ -1,98 +1,107 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import Icon from 'react-native-vector-icons/Ionicons';
-import { auth, firestore } from './firebaseConfig';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, Image, ScrollView } from 'react-native';
 import { collection, addDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { useNavigation } from '@react-navigation/native';
+import { firestore, auth, storage } from '../firebaseConfig'; 
+import * as ImagePicker from 'expo-image-picker';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-export const BuyerScreen = () => {
+export const SellerScreen = () => {
   const [concertName, setConcertName] = useState('');
   const [ticketType, setTicketType] = useState('');
   const [numTickets, setNumTickets] = useState('');
   const [priceRange, setPriceRange] = useState('');
+  const [Date, setDate] = useState('');
   const [location, setLocation] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [image, setImage] = useState<string | null>(null);
 
-  const navigation = useNavigation<NativeStackNavigationProp<any>>();
+  const nav = useNavigation();
 
-  const validateInputs = () => {
-    if (!concertName.trim()) {
-      Alert.alert('Error', 'Please enter the concert name.');
-      return false;
+  const pickImage = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 1,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setImage(result.assets[0].uri);
     }
-    if (!ticketType.trim()) {
-      Alert.alert('Error', 'Please enter the ticket type.');
-      return false;
+  };
+
+  const uploadImage = async () => {
+    if (image) {
+      const response = await fetch(image);
+      const blob = await response.blob();
+      const filename = image.substring(image.lastIndexOf('/') + 1);
+      const storageRef = ref(storage, `images/${filename}`);
+      
+      try {
+        await uploadBytes(storageRef, blob);
+        return await getDownloadURL(storageRef);
+      } catch (error) {
+        console.error("Error uploading image: ", error);
+        return null;
+      }
     }
-    if (!numTickets.trim() || isNaN(parseInt(numTickets)) || parseInt(numTickets) <= 0) {
-      Alert.alert('Error', 'Please enter a valid number of tickets.');
-      return false;
-    }
-    if (!priceRange.trim()) {
-      Alert.alert('Error', 'Please enter the price range.');
-      return false;
-    }
-    if (!location.trim()) {
-      Alert.alert('Error', 'Please enter the location.');
-      return false;
-    }
-    if (!phoneNumber.trim() || phoneNumber.length < 10) {
-      Alert.alert('Error', 'Please enter a valid phone number.');
-      return false;
-    }
-    return true;
+    return null;
   };
 
   const postAd = async () => {
-    if (!validateInputs()) return;
-
     const user = auth.currentUser;
     if (user) {
-      setIsLoading(true);
       try {
-        const userDocRef = doc(collection(firestore, 'users'), user.uid);
+        const userDocRef = doc(firestore, 'users', user.uid);
         const userDocSnap = await getDoc(userDocRef);
-        const userName = userDocSnap.data()?.name;
-        
-        await addDoc(collection(firestore, 'buyerAds'), {
+        const userData = userDocSnap.data();
+        const userName = userData?.name;
+        const profileImageUrl = userData?.profileImageUrl || '';
+
+        const imageUrl = await uploadImage();
+
+        await addDoc(collection(firestore, 'sellerAds'), {
           concertName,
           ticketType,
           numTickets: parseInt(numTickets),
           priceRange,
+          Date,
           location,
           phoneNumber,
           userId: user.uid,
           userName: userName,
+          profileImageUrl: profileImageUrl,
+          imageUrl: imageUrl,
           createdAt: serverTimestamp(),
         });
-        
-        setIsLoading(false);
+
         Alert.alert('Success', 'Your ad has been posted!');
         // Reset form
         setConcertName('');
         setTicketType('');
         setNumTickets('');
         setPriceRange('');
+        setDate('');
         setLocation('');
         setPhoneNumber('');
+        setImage(null);
       } catch (error) {
-        setIsLoading(false);
         Alert.alert('Error', 'There was an error posting your ad.');
       }
     }
   };
 
+  const gobackHome = () => {
+    nav.goBack();
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backIcon} onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerText}>Buyer Ad</Text>
+        <Text style={styles.headerText}> Seller Ad</Text>
       </View>
-      <View style={styles.formContainer}>
+      <ScrollView style={styles.formContainer}>
         <Text style={styles.label}>Name of the concert:</Text>
         <TextInput
           style={styles.input}
@@ -118,9 +127,16 @@ export const BuyerScreen = () => {
         <Text style={styles.label}>Price range:</Text>
         <TextInput
           style={styles.input}
-          placeholder="Enter price range (e.g., $50-$100)"
+          placeholder="Enter price"
           value={priceRange}
           onChangeText={setPriceRange}
+        />
+        <Text style={styles.label}>Date:</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter the Date of the concert:"
+          value={Date}
+          onChangeText={setDate}
         />
         <Text style={styles.label}>Location:</Text>
         <TextInput
@@ -137,14 +153,19 @@ export const BuyerScreen = () => {
           value={phoneNumber}
           onChangeText={setPhoneNumber}
         />
-      </View>
-      {isLoading ? (
-        <ActivityIndicator size="large" color="#2196F3" style={styles.spinner} />
-      ) : (
+        <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
+          <Text style={styles.imageButtonText}>Choose Image</Text>
+        </TouchableOpacity>
+        {image && <Image source={{ uri: image }} style={styles.previewImage} />}
+      </ScrollView>
+      <View style={styles.buttonContainer}>
         <TouchableOpacity style={styles.postButton} onPress={postAd}>
           <Text style={styles.postButtonText}>Post Ad</Text>
         </TouchableOpacity>
-      )}
+        <TouchableOpacity style={styles.postButton} onPress={gobackHome}>
+          <Text style={styles.postButtonText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -158,23 +179,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#2196F3',
     padding: 16,
     alignItems: 'center',
-    flexDirection: 'row',
   },
   headerText: {
     color: '#FFFFFF',
     fontSize: 20,
     fontWeight: 'bold',
-    flex: 1,
-    textAlign: 'center',
-  },
-  backIcon: {
-    position: 'absolute',
-    left: 16,
-    top: 16,
-    zIndex: 1,
   },
   formContainer: {
     padding: 16,
+    paddingBottom: 32,
   },
   label: {
     fontSize: 16,
@@ -189,6 +202,10 @@ const styles = StyleSheet.create({
     padding: 8,
     marginBottom: 16,
   },
+  buttonContainer: {
+    padding: 16,
+    backgroundColor: '#F5F5F5',
+  },
   postButton: {
     backgroundColor: '#2196F3',
     padding: 16,
@@ -202,9 +219,24 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
-  spinner: {
-    marginVertical: 20,
+  imageButton: {
+    backgroundColor: '#4CAF50',
+    padding: 12,
+    borderRadius: 4,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  imageButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  previewImage: {
+    width: 200,
+    height: 200,
+    alignSelf: 'center',
+    marginBottom: 16,
   },
 });
 
-export default BuyerScreen;
+export default SellerScreen;

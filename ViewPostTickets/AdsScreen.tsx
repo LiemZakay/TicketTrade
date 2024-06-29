@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, TextInput, Alert, Modal } from 'react-native';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { auth, firestore } from './firebaseConfig';
+import { auth, firestore } from '../firebaseConfig';
 import { collection, getDocs, doc, getDoc, deleteDoc, query, updateDoc } from 'firebase/firestore';
 
 type RootStackParamList = {
