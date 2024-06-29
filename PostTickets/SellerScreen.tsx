@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, Image, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, Image, ScrollView, ActivityIndicator } from 'react-native';
 import { collection, addDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { useNavigation } from '@react-navigation/native';
 import { firestore, auth, storage } from '../firebaseConfig'; 
@@ -11,12 +11,32 @@ export const SellerScreen = () => {
   const [ticketType, setTicketType] = useState('');
   const [numTickets, setNumTickets] = useState('');
   const [priceRange, setPriceRange] = useState('');
-  const [Date, setDate] = useState('');
+  const [date, setDate] = useState('');
   const [location, setLocation] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [image, setImage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   const nav = useNavigation();
+
+  const validateForm = () => {
+    let newErrors: { [key: string]: string } = {};
+
+    if (!concertName.trim()) newErrors.concertName = "Concert name is required";
+    if (!ticketType.trim()) newErrors.ticketType = "Ticket type is required";
+    if (!numTickets.trim()) newErrors.numTickets = "Number of tickets is required";
+    else if (isNaN(Number(numTickets)) || Number(numTickets) <= 0) newErrors.numTickets = "Invalid number of tickets";
+    if (!priceRange.trim()) newErrors.priceRange = "Price range is required";
+    if (!date.trim()) newErrors.date = "Date is required";
+    if (!location.trim()) newErrors.location = "Location is required";
+    if (!phoneNumber.trim()) newErrors.phoneNumber = "Phone number is required";
+    else if (!/^\d{10}$/.test(phoneNumber)) newErrors.phoneNumber = "Invalid phone number format";
+    if (!image) newErrors.image = "Image is required";
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -28,6 +48,7 @@ export const SellerScreen = () => {
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
       setImage(result.assets[0].uri);
+      setErrors({ ...errors, image: '' });
     }
   };
 
@@ -50,6 +71,9 @@ export const SellerScreen = () => {
   };
 
   const postAd = async () => {
+    if (!validateForm()) return;
+
+    setIsLoading(true);
     const user = auth.currentUser;
     if (user) {
       try {
@@ -66,7 +90,7 @@ export const SellerScreen = () => {
           ticketType,
           numTickets: parseInt(numTickets),
           priceRange,
-          Date,
+          date,
           location,
           phoneNumber,
           userId: user.uid,
@@ -88,6 +112,8 @@ export const SellerScreen = () => {
         setImage(null);
       } catch (error) {
         Alert.alert('Error', 'There was an error posting your ad.');
+      } finally {
+        setIsLoading(false);
       }
     }
   };
@@ -99,70 +125,110 @@ export const SellerScreen = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerText}> Seller Ad</Text>
+        <Text style={styles.headerText}>Seller Ad</Text>
       </View>
       <ScrollView style={styles.formContainer}>
-        <Text style={styles.label}>Name of the concert:</Text>
+        <Text style={styles.label}>Concert Name:</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, errors.concertName ? styles.inputError : null]}
           placeholder="Enter concert name"
           value={concertName}
-          onChangeText={setConcertName}
+          onChangeText={(text) => {
+            setConcertName(text);
+            setErrors({ ...errors, concertName: '' });
+          }}
         />
+        {errors.concertName && <Text style={styles.errorText}>{errors.concertName}</Text>}
+
         <Text style={styles.label}>Ticket Type:</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, errors.ticketType ? styles.inputError : null]}
           placeholder="Enter ticket type"
           value={ticketType}
-          onChangeText={setTicketType}
+          onChangeText={(text) => {
+            setTicketType(text);
+            setErrors({ ...errors, ticketType: '' });
+          }}
         />
-        <Text style={styles.label}>Number of tickets:</Text>
+        {errors.ticketType && <Text style={styles.errorText}>{errors.ticketType}</Text>}
+
+        <Text style={styles.label}>Number of Tickets:</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, errors.numTickets ? styles.inputError : null]}
           placeholder="Enter number of tickets"
           keyboardType="numeric"
           value={numTickets}
-          onChangeText={setNumTickets}
+          onChangeText={(text) => {
+            setNumTickets(text);
+            setErrors({ ...errors, numTickets: '' });
+          }}
         />
-        <Text style={styles.label}>Price range:</Text>
+        {errors.numTickets && <Text style={styles.errorText}>{errors.numTickets}</Text>}
+
+        <Text style={styles.label}>Price Range:</Text>
         <TextInput
-          style={styles.input}
-          placeholder="Enter price"
+          style={[styles.input, errors.priceRange ? styles.inputError : null]}
+          placeholder="Enter price range"
           value={priceRange}
-          onChangeText={setPriceRange}
+          onChangeText={(text) => {
+            setPriceRange(text);
+            setErrors({ ...errors, priceRange: '' });
+          }}
         />
+        {errors.priceRange && <Text style={styles.errorText}>{errors.priceRange}</Text>}
+
         <Text style={styles.label}>Date:</Text>
         <TextInput
-          style={styles.input}
-          placeholder="Enter the Date of the concert:"
-          value={Date}
-          onChangeText={setDate}
+          style={[styles.input, errors.date ? styles.inputError : null]}
+          placeholder="Enter the date of the concert"
+          value={date}
+          onChangeText={(text) => {
+            setDate(text);
+            setErrors({ ...errors, date: '' });
+          }}
         />
+        {errors.date && <Text style={styles.errorText}>{errors.date}</Text>}
+
         <Text style={styles.label}>Location:</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, errors.location ? styles.inputError : null]}
           placeholder="Enter location of concert"
           value={location}
-          onChangeText={setLocation}
+          onChangeText={(text) => {
+            setLocation(text);
+            setErrors({ ...errors, location: '' });
+          }}
         />
-        <Text style={styles.label}>Phone number:</Text>
+        {errors.location && <Text style={styles.errorText}>{errors.location}</Text>}
+
+        <Text style={styles.label}>Phone Number:</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, errors.phoneNumber ? styles.inputError : null]}
           placeholder="Enter phone number"
           keyboardType="phone-pad"
           value={phoneNumber}
-          onChangeText={setPhoneNumber}
+          onChangeText={(text) => {
+            setPhoneNumber(text);
+            setErrors({ ...errors, phoneNumber: '' });
+          }}
         />
+        {errors.phoneNumber && <Text style={styles.errorText}>{errors.phoneNumber}</Text>}
+
         <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
           <Text style={styles.imageButtonText}>Choose Image</Text>
         </TouchableOpacity>
         {image && <Image source={{ uri: image }} style={styles.previewImage} />}
+        {errors.image && <Text style={styles.errorText}>{errors.image}</Text>}
       </ScrollView>
       <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.postButton} onPress={postAd}>
-          <Text style={styles.postButtonText}>Post Ad</Text>
+        <TouchableOpacity style={styles.postButton} onPress={postAd} disabled={isLoading}>
+          {isLoading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.postButtonText}>Post Ad</Text>
+          )}
         </TouchableOpacity>
-        <TouchableOpacity style={styles.postButton} onPress={gobackHome}>
+        <TouchableOpacity style={styles.postButton} onPress={gobackHome} disabled={isLoading}>
           <Text style={styles.postButtonText}>Go Back</Text>
         </TouchableOpacity>
       </View>
@@ -187,7 +253,6 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     padding: 16,
-    paddingBottom: 32,
   },
   label: {
     fontSize: 16,
@@ -202,6 +267,14 @@ const styles = StyleSheet.create({
     padding: 8,
     marginBottom: 16,
   },
+  inputError: {
+    borderColor: 'red',
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 12,
+    marginBottom: 8,
+  },
   buttonContainer: {
     padding: 16,
     backgroundColor: '#F5F5F5',
@@ -211,7 +284,6 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 4,
     alignItems: 'center',
-    marginHorizontal: 16,
     marginBottom: 16,
   },
   postButtonText: {
