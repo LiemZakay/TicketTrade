@@ -5,17 +5,24 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Icon from 'react-native-vector-icons/Ionicons';
 import { auth, firestore } from '../firebaseConfig';
 import { collection, addDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 export const BuyerScreen = () => {
   const [concertName, setConcertName] = useState('');
+  const [date, setDate] = useState(new Date()); // State for date
   const [ticketType, setTicketType] = useState('');
   const [numTickets, setNumTickets] = useState('');
   const [priceRange, setPriceRange] = useState('');
   const [location, setLocation] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false); // State for date picker visibility
 
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
+
+  const formatDate = (date: Date): string => {
+    return `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`;
+  };
 
   const validateInputs = () => {
     if (!concertName.trim()) {
@@ -31,15 +38,19 @@ export const BuyerScreen = () => {
       return false;
     }
     if (!priceRange.trim()) {
-      Alert.alert('Error', 'Please enter the price .');
+      Alert.alert('Error', 'Please enter the price.');
       return false;
     }
     if (!location.trim()) {
       Alert.alert('Error', 'Please enter the location.');
       return false;
     }
-    if (!phoneNumber.trim() || phoneNumber.length < 10) {
-      Alert.alert('Error', 'Please enter a valid phone number.');
+    if (!phoneNumber.trim() || !/^\d{10}$/.test(phoneNumber)) {
+      Alert.alert('Error', 'Please enter a valid 10-digit phone number.');
+      return false;
+    }
+    if (!date || date <= new Date()) {
+      Alert.alert('Error', 'Please select a future date for the concert.');
       return false;
     }
     return true;
@@ -63,6 +74,7 @@ export const BuyerScreen = () => {
           priceRange,
           location,
           phoneNumber,
+          date: formatDate(date),
           userId: user.uid,
           userName: userName,
           createdAt: serverTimestamp(),
@@ -84,6 +96,12 @@ export const BuyerScreen = () => {
     }
   };
 
+  // Date change handler
+  const onDateChange = (event: any, selectedDate: Date | undefined) => {
+    const currentDate = selectedDate || date;
+    setDate(currentDate);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -100,6 +118,7 @@ export const BuyerScreen = () => {
           value={concertName}
           onChangeText={setConcertName}
         />
+
         <Text style={styles.label}>Ticket Type:</Text>
         <TextInput
           style={styles.input}
@@ -107,6 +126,7 @@ export const BuyerScreen = () => {
           value={ticketType}
           onChangeText={setTicketType}
         />
+
         <Text style={styles.label}>Number of tickets:</Text>
         <TextInput
           style={styles.input}
@@ -115,20 +135,23 @@ export const BuyerScreen = () => {
           value={numTickets}
           onChangeText={setNumTickets}
         />
-        <Text style={styles.label}>Price :</Text>
+
+        <Text style={styles.label}>Price:</Text>
         <TextInput
           style={styles.input}
-          placeholder="Enter price in dollars "
+          placeholder="Enter price"
           value={priceRange}
           onChangeText={setPriceRange}
         />
+
         <Text style={styles.label}>Location:</Text>
         <TextInput
           style={styles.input}
-          placeholder="Enter location of concert"
+          placeholder="Enter location"
           value={location}
           onChangeText={setLocation}
         />
+
         <Text style={styles.label}>Phone number:</Text>
         <TextInput
           style={styles.input}
@@ -137,6 +160,25 @@ export const BuyerScreen = () => {
           value={phoneNumber}
           onChangeText={setPhoneNumber}
         />
+
+        <Text style={styles.label}>Concert Date:</Text>
+        <TouchableOpacity 
+          style={styles.dateInput} 
+          onPress={() => setShowDatePicker(true)}
+        >
+          <Text>{formatDate(date)}</Text>
+        </TouchableOpacity>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={date}
+            mode={'date'}
+            is24Hour={true}
+            display="default"
+            onChange={onDateChange}
+            minimumDate={new Date()}
+          />
+        )}
       </View>
       {isLoading ? (
         <ActivityIndicator size="large" color="#2196F3" style={styles.spinner} />
@@ -204,6 +246,15 @@ const styles = StyleSheet.create({
   },
   spinner: {
     marginVertical: 20,
+  },
+  dateInput: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CCCCCC',
+    borderRadius: 4,
+    padding: 8,
+    marginBottom: 16,
+    justifyContent: 'center',
   },
 });
 
