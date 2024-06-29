@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, TextInput, Alert, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, TextInput, Alert, Modal, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { auth, firestore } from '../firebaseConfig';
 import { collection, getDocs, doc, getDoc, deleteDoc, query, updateDoc } from 'firebase/firestore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type RootStackParamList = {
   Profile: { user: any };
@@ -12,13 +13,30 @@ type RootStackParamList = {
 
 type AdsScreenNavigationProp = NavigationProp<RootStackParamList, 'AdsScreen'>;
 
-export const AdsScreen = () => {
-  const [ads, setAds] = useState<any[]>([]);
-  const [filteredAds, setFilteredAds] = useState<any[]>([]);
+interface Ad {
+  id: string;
+  concertName: string;
+  userName: string;
+  ticketType: string;
+  numTickets: number;
+  priceRange: string;
+  location: string;
+  phoneNumber: string;
+  userId: string;
+}
+
+interface Errors {
+  [key: string]: string;
+}
+
+export const AdsScreen: React.FC = () => {
+  const [ads, setAds] = useState<Ad[]>([]);
+  const [filteredAds, setFilteredAds] = useState<Ad[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [editModalVisible, setEditModalVisible] = useState(false);
-  const [editingAd, setEditingAd] = useState<any>(null);
-  const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [editModalVisible, setEditModalVisible] = useState<boolean>(false);
+  const [editingAd, setEditingAd] = useState<Ad | null>(null);
+  const [errors, setErrors] = useState<Errors>({});
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const nav = useNavigation<AdsScreenNavigationProp>();
   const currentUser = auth.currentUser;
 
@@ -27,22 +45,49 @@ export const AdsScreen = () => {
   }, []);
 
   const fetchAds = async () => {
-    const adsCollection = collection(firestore, 'buyerAds');
-    const adsSnapshot = await getDocs(query(adsCollection));
-    const adsList = adsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    setAds(adsList);
-    setFilteredAds(adsList);
+    console.log('Fetching ads...');
+    setIsLoading(true);
+    try {
+      const cachedAds = await AsyncStorage.getItem('buyerAds');
+      if (cachedAds) {
+        console.log('Found cached ads in AsyncStorage');
+        const parsedAds: Ad[] = JSON.parse(cachedAds);
+        setAds(parsedAds);
+        setFilteredAds(parsedAds);
+        setIsLoading(false);
+      }
+
+      const adsCollection = collection(firestore, 'buyerAds');
+      const adsSnapshot = await getDocs(query(adsCollection));
+      const adsList: Ad[] = adsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ad));
+      
+      console.log(`Fetched ${adsList.length} ads from Firestore`);
+      setAds(adsList);
+      setFilteredAds(adsList);
+      
+      await AsyncStorage.setItem('buyerAds', JSON.stringify(adsList));
+      console.log('Cached fresh ads data in AsyncStorage');
+    } catch (error) {
+      console.error('Error fetching ads:', error);
+      Alert.alert('Error', 'Failed to fetch ads. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const goToProfile = async (userId: string) => {
+    console.log(`Navigating to profile of user: ${userId}`);
     const userDocRef = doc(collection(firestore, 'users'), userId);
     const userDocSnap = await getDoc(userDocRef);
     if (userDocSnap.exists()) {
       nav.navigate("Profile", { user: userDocSnap.data() });
+    } else {
+      console.log(`User profile not found for ID: ${userId}`);
     }
   };
 
   const handleSearch = (query: string) => {
+    console.log(`Searching for: "${query}"`);
     setSearchQuery(query);
     const filtered = ads.filter(ad => {
       const concertName = ad.concertName?.toLowerCase() || '';
@@ -50,10 +95,12 @@ export const AdsScreen = () => {
       const priceRange = ad.priceRange?.toString().toLowerCase() || '';
       return concertName.includes(query.toLowerCase()) || userName.includes(query.toLowerCase()) || priceRange.includes(query.toLowerCase());
     });
+    console.log(`Found ${filtered.length} matching ads`);
     setFilteredAds(filtered);
   };
 
   const deleteAd = (adId: string) => {
+    console.log(`Attempting to delete ad: ${adId}`);
     Alert.alert(
       "Delete Ad",
       "Are you sure you want to delete this ad? This action can't be undone.",
@@ -66,8 +113,15 @@ export const AdsScreen = () => {
             try {
               const adDocRef = doc(collection(firestore, 'buyerAds'), adId);
               await deleteDoc(adDocRef);
-              setAds(ads.filter(ad => ad.id !== adId));
-              setFilteredAds(filteredAds.filter(ad => ad.id !== adId));
+              console.log(`Ad ${adId} deleted from Firestore`);
+              
+              const updatedAds = ads.filter(ad => ad.id !== adId);
+              setAds(updatedAds);
+              setFilteredAds(updatedAds);
+              
+              await AsyncStorage.setItem('buyerAds', JSON.stringify(updatedAds));
+              console.log('Updated AsyncStorage after ad deletion');
+              
               Alert.alert("Success", "Your ad has been deleted.");
             } catch (error) {
               console.error("Error deleting ad:", error);
@@ -79,57 +133,76 @@ export const AdsScreen = () => {
     );
   };
 
-  const editAd = (ad: any) => {
+  const editAd = (ad: Ad) => {
+    console.log(`Editing ad: ${ad.id}`);
     setEditingAd(ad);
     setEditModalVisible(true);
     setErrors({});
   };
 
-  const validateFields = () => {
-    const newErrors: { [key: string]: string } = {};
+  const validateFields = (): boolean => {
+    console.log('Validating ad fields...');
+    const newErrors: Errors = {};
   
-    if (!editingAd.concertName) newErrors.concertName = "Concert name is required";
-    if (!editingAd.ticketType) newErrors.ticketType = "Ticket type is required";
-    if (!editingAd.numTickets || editingAd.numTickets <= 0) newErrors.numTickets = "Number of tickets must be greater than 0";
-    if (!editingAd.priceRange) newErrors.priceRange = "Price range is required";
-    if (!editingAd.location) newErrors.location = "Location is required";
+    if (!editingAd?.concertName) newErrors.concertName = "Concert name is required";
+    if (!editingAd?.ticketType) newErrors.ticketType = "Ticket type is required";
+    if (!editingAd?.numTickets || editingAd.numTickets <= 0) newErrors.numTickets = "Number of tickets must be greater than 0";
+    if (!editingAd?.priceRange) newErrors.priceRange = "Price range is required";
+    if (!editingAd?.location) newErrors.location = "Location is required";
   
-    // Example phone number validation (modify as per your requirements)
-    const phoneRegex = /^\+?[1-9]\d{9}$/; // Regex for exactly 10 digits (excluding the country code)
-    if (!editingAd.phoneNumber) {
+    const phoneRegex = /^\+?[1-9]\d{9}$/;
+    if (!editingAd?.phoneNumber) {
       newErrors.phoneNumber = "Phone number is required";
     } else if (!phoneRegex.test(editingAd.phoneNumber)) {
       newErrors.phoneNumber = "Please enter a valid phone number (10 digits)";
     }
   
-    setErrors(newErrors); // Update state with errors
-    return Object.keys(newErrors).length === 0; // Return true if there are no errors
+    setErrors(newErrors);
+    console.log(`Validation complete. Errors found: ${Object.keys(newErrors).length}`);
+    return Object.keys(newErrors).length === 0;
   };
-  
-  
 
   const updateAd = async () => {
     if (!editingAd) return;
   
-    // Validate fields before updating
+    console.log(`Attempting to update ad: ${editingAd.id}`);
     if (!validateFields()) {
+      console.log('Validation failed. Update cancelled.');
       return;
     }
   
     try {
       const adDocRef = doc(collection(firestore, 'buyerAds'), editingAd.id);
-      await updateDoc(adDocRef, editingAd);
+      
+      // Create a new object with only the fields you want to update
+      const updateData = {
+        concertName: editingAd.concertName,
+        ticketType: editingAd.ticketType,
+        numTickets: editingAd.numTickets,
+        priceRange: editingAd.priceRange,
+        location: editingAd.location,
+        phoneNumber: editingAd.phoneNumber,
+      };
+
+      await updateDoc(adDocRef, updateData);
+      console.log(`Ad ${editingAd.id} updated in Firestore`);
+      
       setEditModalVisible(false);
-      fetchAds(); // Refresh the ads list
+      
+      const updatedAds = ads.map(ad => ad.id === editingAd.id ? {...ad, ...updateData} : ad);
+      setAds(updatedAds);
+      setFilteredAds(updatedAds);
+      await AsyncStorage.setItem('buyerAds', JSON.stringify(updatedAds));
+      console.log('Updated AsyncStorage after ad update');
+      
       Alert.alert("Success", "Your ad has been updated.");
     } catch (error) {
       console.error("Error updating ad:", error);
       Alert.alert("Error", "Failed to update ad. Please try again.");
     }
   };
-  
 
-  const renderItem = ({ item }: { item: any }) => (
+  const renderItem = ({ item }: { item: Ad }) => (
     <View style={styles.adContainer}>
       <TouchableOpacity style={styles.adContent} onPress={() => goToProfile(item.userId)}>
         <View style={styles.adHeader}>
@@ -141,7 +214,6 @@ export const AdsScreen = () => {
             <Ionicons name="ticket-outline" size={20} color="#4A90E2" />
             <Text style={styles.detailText}>{item.ticketType} × {item.numTickets}</Text>
           </View>
-          {/* Removed calendar icon here */}
           <View style={styles.detailItem}>
             <Ionicons name="location-outline" size={20} color="#4A90E2" />
             <Text style={styles.detailText}>{item.location}</Text>
@@ -160,7 +232,6 @@ export const AdsScreen = () => {
       )}
     </View>
   );
-  
 
   return (
     <View style={styles.container}>
@@ -180,13 +251,17 @@ export const AdsScreen = () => {
           placeholderTextColor="#A0A0A0"
         />
       </View>
-      <FlatList
-        data={filteredAds}
-        renderItem={renderItem}
-        keyExtractor={item => item.id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
-      />
+      {isLoading ? (
+        <ActivityIndicator size="large" color="#3A86FF" style={styles.loader} />
+      ) : (
+        <FlatList
+          data={filteredAds}
+          renderItem={renderItem}
+          keyExtractor={item => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+        />
+      )}
       <Modal
         animationType="slide"
         transparent={true}
@@ -200,41 +275,49 @@ export const AdsScreen = () => {
           <View style={styles.modalView}>
             <Text style={styles.modalTitle}>Edit Ad</Text>
             <TextInput
-              style={[styles.input, errors.concertName && styles.inputError] as any}
+              style={[styles.input, errors.concertName ? styles.inputError : null]}
               value={editingAd?.concertName}
-              onChangeText={(text) => setEditingAd({...editingAd, concertName: text})}
+              onChangeText={(text) => setEditingAd(editingAd ? {...editingAd, concertName: text} : null)}
               placeholder="Concert Name"
             />
             {errors.concertName && <Text style={styles.errorText}>{errors.concertName}</Text>}
             <TextInput
-              style={[styles.input, errors.ticketType && styles.inputError] as any}
+              style={[styles.input, errors.ticketType ? styles.inputError : null]}
               value={editingAd?.ticketType}
-              onChangeText={(text) => setEditingAd({...editingAd, ticketType: text})}
+              onChangeText={(text) => setEditingAd(editingAd ? {...editingAd, ticketType: text} : null)}
               placeholder="Ticket Type"
             />
             {errors.ticketType && <Text style={styles.errorText}>{errors.ticketType}</Text>}
             <TextInput
-              style={styles.input}
+              style={[styles.input, errors.numTickets ? styles.inputError : null]}
               value={editingAd?.numTickets?.toString()}
-              onChangeText={(text) => setEditingAd({...editingAd, numTickets: parseInt(text) || 0})}
+              onChangeText={(text) => setEditingAd(editingAd ? {...editingAd, numTickets: parseInt(text) || 0} : null)}
               placeholder="Number of Tickets"
               keyboardType="numeric"
             />
             {errors.numTickets && <Text style={styles.errorText}>{errors.numTickets}</Text>}
             <TextInput
-              style={[styles.input, errors.priceRange && styles.inputError] as any}
+              style={[styles.input, errors.priceRange ? styles.inputError : null]}
               value={editingAd?.priceRange}
-              onChangeText={(text) => setEditingAd({...editingAd, priceRange: text})}
+              onChangeText={(text) => setEditingAd(editingAd ? {...editingAd, priceRange: text} : null)}
               placeholder="Price Range"
             />
             {errors.priceRange && <Text style={styles.errorText}>{errors.priceRange}</Text>}
             <TextInput
-              style={[styles.input, errors.location && styles.inputError]as any}
+              style={[styles.input, errors.location ? styles.inputError : null]}
               value={editingAd?.location}
-              onChangeText={(text) => setEditingAd({...editingAd, location: text})}
+              onChangeText={(text) => setEditingAd(editingAd ? {...editingAd, location: text} : null)}
               placeholder="Location"
             />
             {errors.location && <Text style={styles.errorText}>{errors.location}</Text>}
+            <TextInput
+              style={[styles.input, errors.phoneNumber ? styles.inputError : null]}
+              value={editingAd?.phoneNumber}
+              onChangeText={(text) => setEditingAd(editingAd ? {...editingAd, phoneNumber: text} : null)}
+              placeholder="Phone Number"
+              keyboardType="phone-pad"
+            />
+            {errors.phoneNumber && <Text style={styles.errorText}>{errors.phoneNumber}</Text>}
             <View style={styles.modalButtons}>
               <TouchableOpacity style={[styles.button, styles.buttonClose]} onPress={() => setEditModalVisible(false)}>
                 <Text style={styles.textStyle}>Cancel</Text>
@@ -270,6 +353,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#FFFFFF',
+  },
+  loader: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   searchContainer: {
     flexDirection: 'row',

@@ -31,7 +31,7 @@ export const BuyerScreen = () => {
       return false;
     }
     if (!priceRange.trim()) {
-      Alert.alert('Error', 'Please enter the price range.');
+      Alert.alert('Error', 'Please enter the price .');
       return false;
     }
     if (!location.trim()) {
@@ -115,10 +115,10 @@ export const BuyerScreen = () => {
           value={numTickets}
           onChangeText={setNumTickets}
         />
-        <Text style={styles.label}>Price range:</Text>
+        <Text style={styles.label}>Price :</Text>
         <TextInput
           style={styles.input}
-          placeholder="Enter price range (e.g., $50-$100)"
+          placeholder="Enter price in dollars "
           value={priceRange}
           onChangeText={setPriceRange}
         />

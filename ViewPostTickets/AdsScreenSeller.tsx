@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, Image, Modal, TextInput } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, Image, Modal, TextInput, ActivityIndicator } from 'react-native';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { auth, firestore, storage } from '../firebaseConfig';
 import { collection, getDocs, doc, getDoc, deleteDoc, query, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type RootStackParamList = {
   Profile: { user: any };
@@ -20,6 +22,7 @@ export const AdsScreenSeller = () => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingAd, setEditingAd] = useState<any>(null);
   const [newImage, setNewImage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const nav = useNavigation<AdsScreenSellerNavigationProp>();
   const currentUser = auth.currentUser;
 
@@ -28,18 +31,43 @@ export const AdsScreenSeller = () => {
   }, []);
 
   const fetchAds = async () => {
-    const adsCollection = collection(firestore, 'sellerAds');
-    const adsSnapshot = await getDocs(query(adsCollection));
-    const adsList = adsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    setAds(adsList);
+    setIsLoading(true);
+    console.log('Fetching ads...');
+    try {
+      // Try to get ads from AsyncStorage first
+      const storedAds = await AsyncStorage.getItem('sellerAds');
+      if (storedAds) {
+        console.log('Ads found in AsyncStorage');
+        setAds(JSON.parse(storedAds));
+      } else {
+        console.log('Fetching ads from Firestore');
+        const adsCollection = collection(firestore, 'sellerAds');
+        const adsSnapshot = await getDocs(query(adsCollection));
+        const adsList = adsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setAds(adsList);
+        // Save ads to AsyncStorage
+        await AsyncStorage.setItem('sellerAds', JSON.stringify(adsList));
+      }
+    } catch (error) {
+      console.error('Error fetching ads:', error);
+      Alert.alert('Error', 'Failed to fetch ads. Please try again.');
+    }
+    setIsLoading(false);
   };
 
   const goToProfile = async (userId: string) => {
-    const userDocRef = doc(collection(firestore, 'users'), userId);
-    const userDocSnap = await getDoc(userDocRef);
-    if (userDocSnap.exists()) {
-      nav.navigate("Profile", { user: userDocSnap.data() });
+    setIsLoading(true);
+    console.log('Navigating to profile:', userId);
+    try {
+      const userDocRef = doc(collection(firestore, 'users'), userId);
+      const userDocSnap = await getDoc(userDocRef);
+      if (userDocSnap.exists()) {
+        nav.navigate("Profile", { user: userDocSnap.data() });
+      }
+    } catch (error) {
+      console.error('Error navigating to profile:', error);
     }
+    setIsLoading(false);
   };
 
   const deleteAd = (adId: string) => {
@@ -52,15 +80,20 @@ export const AdsScreenSeller = () => {
           text: "Delete",
           style: "destructive",
           onPress: async () => {
+            setIsLoading(true);
+            console.log('Deleting ad:', adId);
             try {
               const adDocRef = doc(collection(firestore, 'sellerAds'), adId);
               await deleteDoc(adDocRef);
-              setAds(ads.filter(ad => ad.id !== adId));
+              const updatedAds = ads.filter(ad => ad.id !== adId);
+              setAds(updatedAds);
+              await AsyncStorage.setItem('sellerAds', JSON.stringify(updatedAds));
               Alert.alert("Success", "Your ad has been deleted.");
             } catch (error) {
               console.error("Error deleting ad:", error);
               Alert.alert("Error", "Failed to delete ad. Please try again.");
             }
+            setIsLoading(false);
           }
         }
       ]
@@ -68,12 +101,14 @@ export const AdsScreenSeller = () => {
   };
 
   const editAd = (ad: any) => {
+    console.log('Editing ad:', ad.id);
     setEditingAd(ad);
     setNewImage(null);
     setEditModalVisible(true);
   };
 
   const pickImage = async () => {
+    console.log('Picking image...');
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -82,25 +117,50 @@ export const AdsScreenSeller = () => {
     });
 
     if (!result.canceled) {
-      setNewImage(result.assets[0].uri);
+      console.log('Image picked:', result.assets[0].uri);
+      const localUri = await saveImageLocally(result.assets[0].uri);
+      setNewImage(localUri);
+    }
+  };
+
+  const saveImageLocally = async (uri: string) => {
+    const filename = uri.split('/').pop();
+    const newPath = `${FileSystem.documentDirectory}${filename}`;
+    try {
+      await FileSystem.copyAsync({
+        from: uri,
+        to: newPath
+      });
+      console.log('Image saved locally:', newPath);
+      return newPath;
+    } catch (error) {
+      console.error('Error saving image locally:', error);
+      return uri;
     }
   };
 
   const uploadImage = async (uri: string) => {
+    console.log('Uploading image:', uri);
     const response = await fetch(uri);
     const blob = await response.blob();
     const filename = uri.substring(uri.lastIndexOf('/') + 1);
     const storageRef = ref(storage, `adImages/${filename}`);
     await uploadBytes(storageRef, blob);
-    return await getDownloadURL(storageRef);
+    const downloadUrl = await getDownloadURL(storageRef);
+    console.log('Image uploaded, URL:', downloadUrl);
+    return downloadUrl;
   };
 
   const updateAd = async () => {
     if (!editingAd) return;
   
-    // Basic validation example (add more fields as needed)
+    console.log('Updating ad:', editingAd.id);
+    setIsLoading(true);
+
+    // Basic validation
     if (!editingAd.concertName || !editingAd.ticketType || !editingAd.numTickets || !editingAd.priceRange || !editingAd.Date || !editingAd.location || !editingAd.phoneNumber) {
       Alert.alert("Validation Error", "Please fill out all fields.");
+      setIsLoading(false);
       return;
     }
   
@@ -113,17 +173,22 @@ export const AdsScreenSeller = () => {
   
       const adDocRef = doc(collection(firestore, 'sellerAds'), editingAd.id);
       await updateDoc(adDocRef, updatedAd);
+      
+      // Update local state and AsyncStorage
+      const updatedAds = ads.map(ad => ad.id === editingAd.id ? updatedAd : ad);
+      setAds(updatedAds);
+      await AsyncStorage.setItem('sellerAds', JSON.stringify(updatedAds));
+
       setEditModalVisible(false);
-      fetchAds(); // Refresh the ads list
       Alert.alert("Success", "Your ad has been updated.");
     } catch (error) {
       console.error("Error updating ad:", error);
       Alert.alert("Error", "Failed to update ad. Please try again.");
     }
+    setIsLoading(false);
   };
   
   const renderItem = ({ item }: { item: any }) => {
-    // Check if the concert date has passed
     const concertDate = new Date(item.Date);
     const currentDate = new Date();
     const datePassed = concertDate < currentDate;
@@ -142,7 +207,6 @@ export const AdsScreenSeller = () => {
   
     return (
       <View style={styles.adContainer}>
-        {/* Toggle button to mark if date has passed */}
         {datePassed && (
           <TouchableOpacity 
             style={[
@@ -210,13 +274,17 @@ export const AdsScreenSeller = () => {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Seller Ads</Text>
       </View>
-      <FlatList
-        data={ads}
-        renderItem={renderItem}
-        keyExtractor={item => item.id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
-      />
+      {isLoading ? (
+        <ActivityIndicator size="large" color="#4A90E2" style={styles.spinner} />
+      ) : (
+        <FlatList
+          data={ads}
+          renderItem={renderItem}
+          keyExtractor={item => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+        />
+      )}
       <Modal
         animationType="slide"
         transparent={true}
@@ -294,6 +362,11 @@ export const AdsScreenSeller = () => {
 };
 
 const styles = StyleSheet.create({
+  spinner: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   deleteButton: {
     position: 'absolute',
     top: 10,

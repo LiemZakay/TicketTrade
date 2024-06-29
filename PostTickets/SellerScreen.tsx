@@ -1,22 +1,24 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, Image, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, Image, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import { collection, addDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { useNavigation } from '@react-navigation/native';
 import { firestore, auth, storage } from '../firebaseConfig'; 
 import * as ImagePicker from 'expo-image-picker';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 export const SellerScreen = () => {
   const [concertName, setConcertName] = useState('');
   const [ticketType, setTicketType] = useState('');
   const [numTickets, setNumTickets] = useState('');
   const [priceRange, setPriceRange] = useState('');
-  const [date, setDate] = useState('');
+  const [date, setDate] = useState<Date | null>(null);
   const [location, setLocation] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [image, setImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const nav = useNavigation();
 
@@ -27,8 +29,8 @@ export const SellerScreen = () => {
     if (!ticketType.trim()) newErrors.ticketType = "Ticket type is required";
     if (!numTickets.trim()) newErrors.numTickets = "Number of tickets is required";
     else if (isNaN(Number(numTickets)) || Number(numTickets) <= 0) newErrors.numTickets = "Invalid number of tickets";
-    if (!priceRange.trim()) newErrors.priceRange = "Price range is required";
-    if (!date.trim()) newErrors.date = "Date is required";
+    if (!priceRange.trim()) newErrors.priceRange = "Price is required";
+    if (!date) newErrors.date = "Date is required";
     if (!location.trim()) newErrors.location = "Location is required";
     if (!phoneNumber.trim()) newErrors.phoneNumber = "Phone number is required";
     else if (!/^\d{10}$/.test(phoneNumber)) newErrors.phoneNumber = "Invalid phone number format";
@@ -90,7 +92,7 @@ export const SellerScreen = () => {
           ticketType,
           numTickets: parseInt(numTickets),
           priceRange,
-          date,
+          date: date?.toISOString() || '',
           location,
           phoneNumber,
           userId: user.uid,
@@ -106,7 +108,7 @@ export const SellerScreen = () => {
         setTicketType('');
         setNumTickets('');
         setPriceRange('');
-        setDate('');
+        setDate(null);
         setLocation('');
         setPhoneNumber('');
         setImage(null);
@@ -121,6 +123,16 @@ export const SellerScreen = () => {
   const gobackHome = () => {
     nav.goBack();
   }
+
+  const onDateChange = (event: any, selectedDate: Date | undefined) => {
+    const currentDate = selectedDate || date;
+    setShowDatePicker(Platform.OS === 'ios');
+    setDate(currentDate);
+  };
+
+  const showDatepicker = () => {
+    setShowDatePicker(true);
+  };
 
   return (
     <View style={styles.container}>
@@ -165,10 +177,10 @@ export const SellerScreen = () => {
         />
         {errors.numTickets && <Text style={styles.errorText}>{errors.numTickets}</Text>}
 
-        <Text style={styles.label}>Price Range:</Text>
+        <Text style={styles.label}>Price :</Text>
         <TextInput
           style={[styles.input, errors.priceRange ? styles.inputError : null]}
-          placeholder="Enter price range"
+          placeholder="Enter price "
           value={priceRange}
           onChangeText={(text) => {
             setPriceRange(text);
@@ -177,16 +189,9 @@ export const SellerScreen = () => {
         />
         {errors.priceRange && <Text style={styles.errorText}>{errors.priceRange}</Text>}
 
-        <Text style={styles.label}>Date:</Text>
-        <TextInput
-          style={[styles.input, errors.date ? styles.inputError : null]}
-          placeholder="Enter the date of the concert"
-          value={date}
-          onChangeText={(text) => {
-            setDate(text);
-            setErrors({ ...errors, date: '' });
-          }}
-        />
+        <TouchableOpacity onPress={showDatepicker} style={[styles.input, styles.datePickerInput, errors.date ? styles.inputError : null]}>
+          <Text style={styles.datePickerText}>{date ? date.toDateString() : 'Select Date'}</Text>
+        </TouchableOpacity>
         {errors.date && <Text style={styles.errorText}>{errors.date}</Text>}
 
         <Text style={styles.label}>Location:</Text>
@@ -220,6 +225,15 @@ export const SellerScreen = () => {
         {image && <Image source={{ uri: image }} style={styles.previewImage} />}
         {errors.image && <Text style={styles.errorText}>{errors.image}</Text>}
       </ScrollView>
+      {showDatePicker && (
+        <DateTimePicker
+          testID="dateTimePicker"
+          value={date || new Date()}
+          mode="date"
+          display="default"
+          onChange={onDateChange}
+        />
+      )}
       <View style={styles.buttonContainer}>
         <TouchableOpacity style={styles.postButton} onPress={postAd} disabled={isLoading}>
           {isLoading ? (
@@ -308,6 +322,13 @@ const styles = StyleSheet.create({
     height: 200,
     alignSelf: 'center',
     marginBottom: 16,
+  },
+  datePickerInput: {
+    justifyContent: 'center',
+  },
+  datePickerText: {
+    fontSize: 16,
+    color: '#333333',
   },
 });
 

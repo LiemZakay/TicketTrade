@@ -20,13 +20,13 @@ const App: React.FC = () => {
       <Stack.Navigator initialRouteName="Login">
         <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Login' }} />
         <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Register' }} />
-        <Stack.Screen name="HomeScreen" component={ HomePageScreen } options={{ title: 'HomeScreen' }} />
-        <Stack.Screen name="BuyerScreen" component={ BuyerScreen } options={{ title: 'BuyerScreen' }} />
-        <Stack.Screen name="AdsScreen" component={ AdsScreen } options={{ title: 'AdsScreen' }} />
-        <Stack.Screen name="AdsScreenSeller" component={ AdsScreenSeller } options={{ title: 'AdsScreenSeller' }} />
+        <Stack.Screen name="HomeScreen" component={ HomePageScreen } options={{ title: 'Home Screen' }} />
+        <Stack.Screen name="BuyerScreen" component={ BuyerScreen } options={{ title: 'Buyer Screen' }} />
+        <Stack.Screen name="AdsScreen" component={ AdsScreen } options={{ title: 'Ads Screen' }} />
+        <Stack.Screen name="AdsScreenSeller" component={ AdsScreenSeller } options={{ title: 'Ads Screen Seller' }} />
         <Stack.Screen name="SellerScreen" component={ SellerScreen } options={{ title: 'SellerScreen' }} />
         <Stack.Screen name="Profile" component={ Profile } options={{ title: 'Profile' }} />
-        <Stack.Screen name="PopularArtistsScreen" component={ PopularArtistsScreen } options={{ title: 'PopularArtistsScreen' }} />
+        <Stack.Screen name="PopularArtistsScreen" component={ PopularArtistsScreen } options={{ title: 'Popular Artists Screen' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );
