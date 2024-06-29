@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   FlatList,
   ScrollView,
+  Image,
   Alert,
 } from "react-native";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
@@ -18,7 +19,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { LogBox } from 'react-native';
 import { firestore, storage, auth } from '../firebaseConfig';
 import * as ImagePicker from 'expo-image-picker';
-import { Image } from 'expo-image';
 
 LogBox.ignoreLogs(['Warning: TapRating: Support for defaultProps']);
 
@@ -30,16 +30,6 @@ type ProfileRouteParams = {
     phone: string;
     profilePicture?: string;
   };
-};
-
-const CacheImage: React.FC<{ uri: string; style: any }> = ({ uri, style }) => {
-  return (
-    <Image
-      source={{ uri }}
-      style={style}
-      cachePolicy="memory-disk"
-    />
-  );
 };
 
 export const Profile: React.FC = () => {
@@ -81,6 +71,8 @@ export const Profile: React.FC = () => {
       setBuyerAds(buyerAdsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       setSellerAds(sellerAdsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     };
+
+    fetchAds();
 
     const fetchRatings = async () => {
       const ratingsQuery = query(collection(firestore, 'ratings'), where('userId', '==', user.uid));
@@ -124,15 +116,10 @@ export const Profile: React.FC = () => {
     try {
       await uploadBytes(storageRef, blob);
       const downloadURL = await getDownloadURL(storageRef);
-      
       setProfilePicture(downloadURL);
       
       const userDocRef = doc(firestore, 'users', user.uid);
       await updateDoc(userDocRef, { profilePicture: downloadURL });
-
-      // Clear the image cache
-      await Image.clearDiskCache();
-      await Image.clearMemoryCache();
     } catch (error) {
       console.error("Error uploading image: ", error);
       Alert.alert("Error", "Failed to upload image. Please try again.");
@@ -220,7 +207,7 @@ export const Profile: React.FC = () => {
         </View>
         <TouchableOpacity onPress={pickImage} style={styles.profilePictureContainer} disabled={!isCurrentUser}>
           {profilePicture ? (
-            <CacheImage uri={profilePicture} style={styles.profilePicture} />
+            <Image source={{ uri: profilePicture }} style={styles.profilePicture} />
           ) : (
             <View style={styles.profilePicturePlaceholder}>
               <Ionicons name="person" size={60} color="#CCCCCC" />
@@ -272,15 +259,23 @@ export const Profile: React.FC = () => {
           scrollEnabled={false}
         />
         <Text style={styles.sectionHeader}>Rate this user</Text>
-        <AirbnbRating
-          count={5}
-          reviews={["Terrible", "Bad", "OK", "Good", "Amazing"]}
-          defaultRating={rating}
-          size={20}
-          onFinishRating={submitRating}
-          showRating={false}
-          starContainerStyle={styles.ratingContainer}
-        />
+        <View style={styles.ratingContainer}>
+          <TouchableOpacity onPress={() => submitRating(1)}>
+            <Ionicons name={rating >= 1 ? "ticket" : "ticket-outline"} size={24} color="#FFD700" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => submitRating(2)}>
+            <Ionicons name={rating >= 2 ? "ticket" : "ticket-outline"} size={24} color="#FFD700" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => submitRating(3)}>
+            <Ionicons name={rating >= 3 ? "ticket" : "ticket-outline"} size={24} color="#FFD700" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => submitRating(4)}>
+            <Ionicons name={rating >= 4 ? "ticket" : "ticket-outline"} size={24} color="#FFD700" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => submitRating(5)}>
+            <Ionicons name={rating >= 5 ? "ticket" : "ticket-outline"} size={24} color="#FFD700" />
+          </TouchableOpacity>
+        </View>
         <Text style={styles.averageRatingText}>Average Rating: {averageRating.toFixed(1)}</Text>
       </ScrollView>
     </SafeAreaView>
@@ -413,7 +408,8 @@ const styles = StyleSheet.create({
     color: '#555555',
   },
   ratingContainer: {
-    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
     marginBottom: 10,
   },
   averageRatingText: {
