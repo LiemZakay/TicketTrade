@@ -18,7 +18,7 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
   useEffect(() => {
     loadSavedCredentials();
   }, []);
-
+//using the AsyncStorage to import the saved user 
   const loadSavedCredentials = async () => {
     try {
       const savedEmail = await AsyncStorage.getItem('savedEmail');
@@ -32,7 +32,7 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
       console.error('Error loading saved credentials:', error);
     }
   };
-
+//Save the user details to the AsyncStorage 
   const saveCredentials = async () => {
     try {
       if (rememberMe) {
@@ -46,7 +46,7 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
       console.error('Error saving credentials:', error);
     }
   };
-
+//check if all the fileds are filled
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert('Error', 'Please fill in all fields');
@@ -59,9 +59,9 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
       console.log('User logged in:', userCredential.user.email);
       await saveCredentials();
       navigation.replace('HomeScreen');
-      // Navigate to next screen or handle success
-    //  navigation.navigate('Home'); // Replace 'Home' with your desired screen name
+      // Navigate to home screen when the user is logged in
     } catch (error) {
+      //handeling error 
       console.error('Login failed:', error);
       Alert.alert('Login Failed', 'Please check your email and password.');
     } finally {
@@ -72,7 +72,7 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
   const goToRegister = () => {
     navigation.replace('Register');
   };
-
+//view register screen 
   return (
     <Pressable style={styles.contentView} onPress={Keyboard.dismiss}>
       <View style={styles.container}>
@@ -133,7 +133,7 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
     </Pressable>
   );
 };
-
+//style info
 const styles = StyleSheet.create({
   contentView: {
     flex: 1,

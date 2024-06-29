@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, TextInput, StyleSheet, SafeAreaView, Pressable, Text, Alert, Keyboard, Image, ActivityIndicator } from 'react-native';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { collection, doc, setDoc } from 'firebase/firestore';
 import { auth, firestore } from '../firebaseConfig';
-import AsyncStorage from '@react-native-async-storage/async-storage'; // Import AsyncStorage
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 type RegisterProps = {
@@ -17,12 +17,39 @@ export const RegisterScreen: React.FC<RegisterProps> = ({ navigation }) => {
   const [phone, setPhone] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
+  useEffect(() => {
+    checkAsyncStorage();
+  }, []);
+
+  //check if it stored in the AsyncStorage
+  const checkAsyncStorage = async () => {
+    try {
+      const storedValue = await AsyncStorage.getItem('userLoggedIn');
+      console.log('Value in AsyncStorage:', storedValue);
+    } catch (error) {
+      console.error('Error checking AsyncStorage:', error);
+    }
+  };
+
+  //provide all the info that in being saved in the AsyncStorage
+  const dumpAsyncStorage = async () => {
+    try {
+      const keys = await AsyncStorage.getAllKeys();
+      const result = await AsyncStorage.multiGet(keys);
+      console.log('AsyncStorage dump:');
+      result.forEach(([key, value]) => console.log(key, ':', value));
+    } catch (error) {
+      console.error('Error dumping AsyncStorage:', error);
+    }
+  };
+
+  //check if all the fields are filled
   const registerAndGoToMainFlow = async () => {
     if (!name || !email || !password || !phone) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
-
+//store the user info in the firebase
     setIsLoading(true);
     try {
       const response = await createUserWithEmailAndPassword(auth, email, password);
@@ -39,14 +66,32 @@ export const RegisterScreen: React.FC<RegisterProps> = ({ navigation }) => {
         // AsyncStorage
         await AsyncStorage.setItem('userLoggedIn', 'true');
 
+        // Check if the value was stored successfully
+        const storedValue = await AsyncStorage.getItem('userLoggedIn');
+        if (storedValue === 'true') {
+          console.log('Value successfully stored in AsyncStorage');
+        } else {
+          console.warn('Failed to store value in AsyncStorage');
+        }
+
+        // Dump all AsyncStorage contents
+        await dumpAsyncStorage();
+
         navigation.replace('Login');
       }
-    } catch (error: any) {
+    } //user validation 
+    catch (error: any) {
       let errorMessage = 'Registration failed';
       switch (error.code) {
         case 'auth/email-already-in-use':
           errorMessage = 'Email already in use';
           break;
+        case 'auth/invalid-phone-number':
+            errorMessage = 'Invalid phone number';
+            break;
+        case 'auth/missing-phone-number':
+            errorMessage = 'Phone number is missing';
+            break;
         case 'auth/invalid-email':
           errorMessage = 'Invalid email address';
           break;
@@ -61,7 +106,7 @@ export const RegisterScreen: React.FC<RegisterProps> = ({ navigation }) => {
       setIsLoading(false);
     }
   };
-
+//view register screen 
   return (
     <Pressable style={styles.contentView} onPress={Keyboard.dismiss}>
       <SafeAreaView style={styles.contentView}>
@@ -131,7 +176,7 @@ export const RegisterScreen: React.FC<RegisterProps> = ({ navigation }) => {
     </Pressable>
   );
 };
-
+//style definitions
 const styles = StyleSheet.create({
   contentView: {
     flex: 1,

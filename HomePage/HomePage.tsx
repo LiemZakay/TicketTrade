@@ -5,12 +5,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { auth, firestore } from '../firebaseConfig';
 import { collection, doc, getDoc, getDocs, query, deleteDoc, updateDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
+import FontAwesome from 'react-native-vector-icons/FontAwesome'
 
+//screen navigation info
 type RootStackParamList = {
   Profile: { user: any };
   BuyerScreen: undefined;
   SellerScreen: undefined;
   Login: undefined;
+  PopularArtistsScreen: undefined;
 };
 
 type ProfileScreenNavigationProp = NavigationProp<RootStackParamList, 'Profile'>;
@@ -40,7 +43,7 @@ export const HomePageScreen = () => {
       }
     }
   };
-
+//there is one screen for users and one screen for seller 
   const fetchAds = async () => {
     const adsCollection = collection(firestore, isSellerMode ? 'sellerAds' : 'buyerAds');
     const adsSnapshot = await getDocs(query(adsCollection));
@@ -48,7 +51,7 @@ export const HomePageScreen = () => {
     setAds(adsList);
     setFilteredAds(adsList);
   };
-
+//navigate to profile, with the current user
   const goToProfile = async (userId: string) => {
     const userDocRef = doc(collection(firestore, 'users'), userId);
     const userDocSnap = await getDoc(userDocRef);
@@ -56,6 +59,7 @@ export const HomePageScreen = () => {
       nav.navigate("Profile", { user: userDocSnap.data() });
     }
   };
+  //logout feature 
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -64,7 +68,7 @@ export const HomePageScreen = () => {
       console.error('Error signing out: ', error);
     }
   };
-
+//navigate to the Ad posts screens 
   const AlertBuyerorSeller = () => {
     Alert.alert(
       "Ticket Trade",
@@ -193,6 +197,10 @@ export const HomePageScreen = () => {
     </View>
   );
 
+  const gotospotify=()=> {
+    nav.navigate('PopularArtistsScreen');
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
@@ -205,6 +213,10 @@ export const HomePageScreen = () => {
           <TouchableOpacity onPress={handleLogout} style={styles.iconButton}>
             <Ionicons name="log-out-outline" size={32} color="#FFFFFF" />
           </TouchableOpacity>
+          <TouchableOpacity onPress={gotospotify} style={styles.iconButton}>
+            <FontAwesome name="spotify" size={32} color="#FFFFFF" />
+          </TouchableOpacity>
+
         </View>
       </View>
       <View style={styles.content}>
@@ -214,7 +226,7 @@ export const HomePageScreen = () => {
             <View style={styles.switchContainer}>
               <Text style={styles.switchText}>Buyer</Text>
               <Switch
-                trackColor={{ false: "#767577", true: "#81b0ff" }}
+                trackColor={{ false: "#81b0ff", true: "#81b0ff" }}
                 thumbColor={isSellerMode ? "#f5dd4b" : "#f4f3f4"}
                 ios_backgroundColor="#3e3e3e"
                 onValueChange={() => setIsSellerMode(previousState => !previousState)}
