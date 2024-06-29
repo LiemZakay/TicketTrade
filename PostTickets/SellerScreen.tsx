@@ -190,7 +190,7 @@ export const SellerScreen = () => {
         {errors.priceRange && <Text style={styles.errorText}>{errors.priceRange}</Text>}
 
         <TouchableOpacity onPress={showDatepicker} style={[styles.input, styles.datePickerInput, errors.date ? styles.inputError : null]}>
-          <Text style={styles.datePickerText}>{date ? date.toDateString() : 'Select Date'}</Text>
+          <Text style={styles.datePickerText}>{date ? formatDate(date) : 'Select Date'}</Text>
         </TouchableOpacity>
         {errors.date && <Text style={styles.errorText}>{errors.date}</Text>}
 
@@ -231,6 +231,7 @@ export const SellerScreen = () => {
           value={date || new Date()}
           mode="date"
           display="default"
+          minimumDate={new Date()} // Only allow future dates
           onChange={onDateChange}
         />
       )}
@@ -248,6 +249,13 @@ export const SellerScreen = () => {
       </View>
     </View>
   );
+};
+
+const formatDate = (date: Date) => {
+  const day = date.getDate();
+  const month = date.getMonth() + 1; // Month is 0-based
+  const year = date.getFullYear();
+  return `${day}.${month}.${year}`;
 };
 
 const styles = StyleSheet.create({
@@ -331,5 +339,4 @@ const styles = StyleSheet.create({
     color: '#333333',
   },
 });
-
-export default SellerScreen;
+export default SellerScreen
